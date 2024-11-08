@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,7 @@ interface NavigationItem {
 export default function Navbar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -30,6 +31,8 @@ export default function Navbar() {
     { name: 'Reports', href: '/reports', public: false },
     { name: 'Profile', href: '/profile', public: false },
   ];
+
+  const isActive = (path: string) => location.pathname === path;
 
   const authLinks = currentUser ? (
     <button
@@ -60,21 +63,25 @@ export default function Navbar() {
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 justify-between">
-              <div className="flex">
-                <div className="flex flex-shrink-0 items-center">
+            <div className="flex h-16 items-center justify-between">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
                   <Link to="/" className="text-white text-xl font-bold">
                     EcoTrack
                   </Link>
                 </div>
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
                   {navigation
                     .filter(item => item.public || currentUser)
                     .map((item) => (
                       <Link
                         key={item.name}
                         to={item.href}
-                        className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                        className={`${
+                          isActive(item.href)
+                            ? 'bg-green-700 text-white'
+                            : 'text-green-100 hover:text-white hover:bg-green-700'
+                        } px-3 py-2 rounded-md text-sm font-medium transition-colors`}
                       >
                         {item.name}
                       </Link>
@@ -82,17 +89,21 @@ export default function Navbar() {
                   {currentUser?.email === 'admin@ecotrack.com' && (
                     <Link
                       to="/admin"
-                      className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                      className={`${
+                        isActive('/admin')
+                          ? 'bg-green-700 text-white'
+                          : 'text-green-100 hover:text-white hover:bg-green-700'
+                      } px-3 py-2 rounded-md text-sm font-medium transition-colors`}
                     >
                       Admin Dashboard
                     </Link>
                   )}
                 </div>
               </div>
-              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+              <div className="hidden sm:flex sm:items-center">
                 {authLinks}
               </div>
-              <div className="-mr-2 flex items-center sm:hidden">
+              <div className="flex items-center sm:hidden">
                 <Disclosure.Button className="inline-flex items-center justify-center rounded-md p-2 text-green-100 hover:bg-green-700 hover:text-white">
                   <span className="sr-only">Open main menu</span>
                   {open ? (
@@ -113,7 +124,11 @@ export default function Navbar() {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className="text-green-100 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
+                    className={`${
+                      isActive(item.href)
+                        ? 'bg-green-700 text-white'
+                        : 'text-green-100 hover:text-white hover:bg-green-700'
+                    } block px-3 py-2 rounded-md text-base font-medium`}
                   >
                     {item.name}
                   </Link>
@@ -121,12 +136,16 @@ export default function Navbar() {
               {currentUser?.email === 'admin@ecotrack.com' && (
                 <Link
                   to="/admin"
-                  className="text-green-100 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
+                  className={`${
+                    isActive('/admin')
+                      ? 'bg-green-700 text-white'
+                      : 'text-green-100 hover:text-white hover:bg-green-700'
+                  } block px-3 py-2 rounded-md text-base font-medium`}
                 >
                   Admin Dashboard
                 </Link>
               )}
-              <div className="mt-4 border-t border-green-700 pt-4">
+              <div className="mt-4 border-t border-green-700 pt-4 px-3">
                 {authLinks}
               </div>
             </div>

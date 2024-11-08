@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, query, getDocs, updateDoc, doc, deleteDoc, DocumentData } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, doc, deleteDoc, addDoc, DocumentData } from 'firebase/firestore';
 
 interface WasteItem extends DocumentData {
   id: string;
@@ -14,10 +14,12 @@ interface WasteItem extends DocumentData {
   location: string;
 }
 
-interface Vendor extends DocumentData {
+interface Vendor {
   id: string;
   name: string;
   location: string;
+  materials: string[];
+  contact: string;
 }
 
 export default function AdminDashboard() {
@@ -27,6 +29,13 @@ export default function AdminDashboard() {
   const [wasteItems, setWasteItems] = useState<WasteItem[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [newVendor, setNewVendor] = useState({
+    name: '',
+    location: '',
+    materials: '',
+    contact: '',
+  });
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
 
   useEffect(() => {
     if (currentUser?.email !== 'admin@ecotrack.com') {
@@ -70,6 +79,44 @@ export default function AdminDashboard() {
       );
     } catch (error) {
       console.error('Error updating status:', error);
+    }
+  };
+
+  const addVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const vendorData = {
+        name: newVendor.name,
+        location: newVendor.location,
+        materials: newVendor.materials.split(',').map(m => m.trim()),
+        contact: newVendor.contact,
+      };
+      const docRef = await addDoc(collection(db, 'vendors'), vendorData);
+      setVendors([...vendors, { id: docRef.id, ...vendorData }]);
+      setNewVendor({ name: '', location: '', materials: '', contact: '' });
+    } catch (error) {
+      console.error('Error adding vendor:', error);
+    }
+  };
+
+  const updateVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendor) return;
+
+    try {
+      const vendorData = {
+        name: editingVendor.name,
+        location: editingVendor.location,
+        materials: Array.isArray(editingVendor.materials) 
+          ? editingVendor.materials 
+          : editingVendor.materials.split(',').map(m => m.trim()),
+        contact: editingVendor.contact,
+      };
+      await updateDoc(doc(db, 'vendors', editingVendor.id), vendorData);
+      setVendors(vendors.map(v => v.id === editingVendor.id ? { ...editingVendor, ...vendorData } : v));
+      setEditingVendor(null);
+    } catch (error) {
+      console.error('Error updating vendor:', error);
     }
   };
 
@@ -182,15 +229,114 @@ export default function AdminDashboard() {
           </table>
         </div>
       ) : (
-        <div className="bg-white shadow-sm rounded-lg p-6">
+        <div className="space-y-6">
+          {/* Add New Vendor Form */}
+          <div className="bg-white shadow-sm rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              {editingVendor ? 'Edit Vendor' : 'Add New Vendor'}
+            </h3>
+            <form onSubmit={editingVendor ? updateVendor : addVendor} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    value={editingVendor ? editingVendor.name : newVendor.name}
+                    onChange={(e) => editingVendor 
+                      ? setEditingVendor({...editingVendor, name: e.target.value})
+                      : setNewVendor({...newVendor, name: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  <input
+                    type="text"
+                    value={editingVendor ? editingVendor.location : newVendor.location}
+                    onChange={(e) => editingVendor
+                      ? setEditingVendor({...editingVendor, location: e.target.value})
+                      : setNewVendor({...newVendor, location: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Materials (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={editingVendor ? editingVendor.materials.join(', ') : newVendor.materials}
+                    onChange={(e) => editingVendor
+                      ? setEditingVendor({...editingVendor, materials: e.target.value.split(',').map(m => m.trim())})
+                      : setNewVendor({...newVendor, materials: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Contact</label>
+                  <input
+                    type="email"
+                    value={editingVendor ? editingVendor.contact : newVendor.contact}
+                    onChange={(e) => editingVendor
+                      ? setEditingVendor({...editingVendor, contact: e.target.value})
+                      : setNewVendor({...newVendor, contact: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3">
+                {editingVendor && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingVendor(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                >
+                  {editingVendor ? 'Update Vendor' : 'Add Vendor'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Vendors List */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {vendors.map((vendor) => (
-              <div key={vendor.id} className="bg-gray-50 rounded-lg p-6">
+              <div key={vendor.id} className="bg-white rounded-lg shadow-md p-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-2">
                   {vendor.name}
                 </h4>
-                <p className="text-sm text-gray-600 mb-4">{vendor.location}</p>
+                <p className="text-sm text-gray-600 mb-2">{vendor.location}</p>
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-1">Materials:</h5>
+                  <div className="flex flex-wrap gap-1">
+                    {vendor.materials.map((material, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                      >
+                        {material}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Contact: {vendor.contact}
+                </p>
                 <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => setEditingVendor(vendor)}
+                    className="text-green-600 hover:text-green-700 text-sm font-medium"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => deleteVendor(vendor.id)}
                     className="text-red-600 hover:text-red-700 text-sm font-medium"
