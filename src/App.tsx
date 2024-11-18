@@ -10,6 +10,7 @@ import Reports from './pages/Reports';
 import UserProfile from './pages/UserProfile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -46,6 +47,14 @@ function App() {
                   element={
                     <PrivateRoute>
                       <UserProfile />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <PrivateRoute>
+                      <AdminDashboard />
                     </PrivateRoute>
                   }
                 />

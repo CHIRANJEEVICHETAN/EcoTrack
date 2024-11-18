@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, query, getDocs, updateDoc, doc, deleteDoc, addDoc, DocumentData } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, doc, deleteDoc, where } from 'firebase/firestore';
+import { ChartBarIcon, UsersIcon, TrashIcon } from '@heroicons/react/24/outline';
 
-interface WasteItem extends DocumentData {
+interface WasteItem {
   id: string;
   itemType: string;
   brand?: string;
@@ -12,30 +13,31 @@ interface WasteItem extends DocumentData {
   status: string;
   userEmail: string;
   location: string;
+  createdAt: Date;
 }
 
-interface Vendor {
-  id: string;
-  name: string;
-  location: string;
-  materials: string[];
-  contact: string;
+interface UserData {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  itemsRecycled: number;
+  joinDate: Date;
 }
 
 export default function AdminDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('waste');
+  const [activeTab, setActiveTab] = useState('overview');
   const [wasteItems, setWasteItems] = useState<WasteItem[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newVendor, setNewVendor] = useState({
-    name: '',
-    location: '',
-    materials: '',
-    contact: '',
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalItems: 0,
+    completedItems: 0,
+    pendingItems: 0,
   });
-  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
 
   useEffect(() => {
     if (currentUser?.email !== 'admin@ecotrack.com') {
@@ -45,23 +47,47 @@ export default function AdminDashboard() {
 
     const fetchData = async () => {
       try {
+        // Fetch waste items
         const wasteQuery = query(collection(db, 'e-waste'));
         const wasteSnapshot = await getDocs(wasteQuery);
         const wasteData = wasteSnapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate()
         })) as WasteItem[];
         setWasteItems(wasteData);
 
-        const vendorsQuery = query(collection(db, 'vendors'));
-        const vendorsSnapshot = await getDocs(vendorsQuery);
-        const vendorsData = vendorsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Vendor[];
-        setVendors(vendorsData);
+        // Fetch users
+        const usersQuery = query(collection(db, 'users'));
+        const usersSnapshot = await getDocs(usersQuery);
+        const usersData = await Promise.all(
+          usersSnapshot.docs.map(async (doc) => {
+            const userWasteQuery = query(
+              collection(db, 'e-waste'),
+              where('userId', '==', doc.id)
+            );
+            const userWasteSnapshot = await getDocs(userWasteQuery);
+            return {
+              uid: doc.id,
+              ...doc.data(),
+              itemsRecycled: userWasteSnapshot.docs.length,
+              joinDate: doc.data().createdAt?.toDate() || new Date(),
+            } as UserData;
+          })
+        );
+        setUsers(usersData);
+
+        // Calculate statistics
+        setStats({
+          totalUsers: usersData.length,
+          totalItems: wasteData.length,
+          completedItems: wasteData.filter(item => item.status === 'Completed').length,
+          pendingItems: wasteData.filter(item => item.status === 'Pending').length,
+        });
+
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError('Failed to load dashboard data');
       }
       setLoading(false);
     };
@@ -79,91 +105,231 @@ export default function AdminDashboard() {
       );
     } catch (error) {
       console.error('Error updating status:', error);
+      setError('Failed to update status');
     }
   };
 
-  const addVendor = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const deleteWasteItem = async (id: string) => {
     try {
-      const vendorData = {
-        name: newVendor.name,
-        location: newVendor.location,
-        materials: newVendor.materials.split(',').map(m => m.trim()),
-        contact: newVendor.contact,
-      };
-      const docRef = await addDoc(collection(db, 'vendors'), vendorData);
-      setVendors([...vendors, { id: docRef.id, ...vendorData }]);
-      setNewVendor({ name: '', location: '', materials: '', contact: '' });
+      await deleteDoc(doc(db, 'e-waste', id));
+      setWasteItems(prev => prev.filter(item => item.id !== id));
     } catch (error) {
-      console.error('Error adding vendor:', error);
+      console.error('Error deleting waste item:', error);
+      setError('Failed to delete item');
     }
   };
 
-  const updateVendor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingVendor) return;
-
+  const deleteUser = async (uid: string) => {
     try {
-      const vendorData = {
-        name: editingVendor.name,
-        location: editingVendor.location,
-        materials: Array.isArray(editingVendor.materials) 
-          ? editingVendor.materials 
-          : editingVendor.materials.split(',').map(m => m.trim()),
-        contact: editingVendor.contact,
-      };
-      await updateDoc(doc(db, 'vendors', editingVendor.id), vendorData);
-      setVendors(vendors.map(v => v.id === editingVendor.id ? { ...editingVendor, ...vendorData } : v));
-      setEditingVendor(null);
-    } catch (error) {
-      console.error('Error updating vendor:', error);
-    }
-  };
+      // Delete user's waste items
+      const userWasteQuery = query(
+        collection(db, 'e-waste'),
+        where('userId', '==', uid)
+      );
+      const userWasteSnapshot = await getDocs(userWasteQuery);
+      await Promise.all(
+        userWasteSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      );
 
-  const deleteVendor = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, 'vendors', id));
-      setVendors(prev => prev.filter(vendor => vendor.id !== id));
+      // Delete user document
+      await deleteDoc(doc(db, 'users', uid));
+
+      setUsers(prev => prev.filter(user => user.uid !== uid));
     } catch (error) {
-      console.error('Error deleting vendor:', error);
+      console.error('Error deleting user:', error);
+      setError('Failed to delete user');
     }
   };
 
   if (loading) {
-    return <div className="text-center mt-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h2>
-
-      <div className="mb-6">
-        <nav className="flex space-x-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-900">Admin Dashboard</h2>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'overview'
+                ? 'bg-green-600 text-white'
+                : 'text-gray-600 hover:bg-green-50'
+            }`}
+          >
+            <ChartBarIcon className="h-5 w-5 inline-block mr-2" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'users'
+                ? 'bg-green-600 text-white'
+                : 'text-gray-600 hover:bg-green-50'
+              }`}
+          >
+            <UsersIcon className="h-5 w-5 inline-block mr-2" />
+            Users
+          </button>
           <button
             onClick={() => setActiveTab('waste')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'waste'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'waste'
                 ? 'bg-green-600 text-white'
                 : 'text-gray-600 hover:bg-green-50'
             }`}
           >
-            E-Waste Management
+            <TrashIcon className="h-5 w-5 inline-block mr-2" />
+            E-Waste
           </button>
-          <button
-            onClick={() => setActiveTab('vendors')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'vendors'
-                ? 'bg-green-600 text-white'
-                : 'text-gray-600 hover:bg-green-50'
-            }`}
-          >
-            Recycling Vendors
-          </button>
-        </nav>
+        </div>
       </div>
 
-      {activeTab === 'waste' ? (
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
+          {error}
+        </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UsersIcon className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Users
+                    </dt>
+                    <dd className="text-3xl font-semibold text-gray-900">
+                      {stats.totalUsers}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <TrashIcon className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Items
+                    </dt>
+                    <dd className="text-3xl font-semibold text-gray-900">
+                      {stats.totalItems}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ChartBarIcon className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Completed Items
+                    </dt>
+                    <dd className="text-3xl font-semibold text-gray-900">
+                      {stats.completedItems}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ChartBarIcon className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Pending Items
+                    </dt>
+                    <dd className="text-3xl font-semibold text-gray-900">
+                      {stats.pendingItems}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Items Recycled
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Join Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.map((user) => (
+                <tr key={user.uid}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.displayName || user.email}
+                    </div>
+                    <div className="text-sm text-gray-500">{user.email}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.itemsRecycled}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.joinDate.toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => deleteUser(user.uid)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'waste' && (
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -202,151 +368,28 @@ export default function AdminDashboard() {
                     {item.location}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      item.status === 'Completed'
-                        ? 'bg-green-100 text-green-800'
-                        : item.status === 'In Progress'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <select
-                      onChange={(e) => updateWasteStatus(item.id, e.target.value)}
                       value={item.status}
+                      onChange={(e) => updateWasteStatus(item.id, e.target.value)}
                       className="rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
                     >
-                      <option>Pending</option>
-                      <option>In Progress</option>
-                      <option>Completed</option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
                     </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => deleteWasteItem(item.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Add New Vendor Form */}
-          <div className="bg-white shadow-sm rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {editingVendor ? 'Edit Vendor' : 'Add New Vendor'}
-            </h3>
-            <form onSubmit={editingVendor ? updateVendor : addVendor} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <input
-                    type="text"
-                    value={editingVendor ? editingVendor.name : newVendor.name}
-                    onChange={(e) => editingVendor 
-                      ? setEditingVendor({...editingVendor, name: e.target.value})
-                      : setNewVendor({...newVendor, name: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Location</label>
-                  <input
-                    type="text"
-                    value={editingVendor ? editingVendor.location : newVendor.location}
-                    onChange={(e) => editingVendor
-                      ? setEditingVendor({...editingVendor, location: e.target.value})
-                      : setNewVendor({...newVendor, location: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Materials (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={editingVendor ? editingVendor.materials.join(', ') : newVendor.materials}
-                    onChange={(e) => editingVendor
-                      ? setEditingVendor({...editingVendor, materials: e.target.value.split(',').map(m => m.trim())})
-                      : setNewVendor({...newVendor, materials: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Contact</label>
-                  <input
-                    type="email"
-                    value={editingVendor ? editingVendor.contact : newVendor.contact}
-                    onChange={(e) => editingVendor
-                      ? setEditingVendor({...editingVendor, contact: e.target.value})
-                      : setNewVendor({...newVendor, contact: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3">
-                {editingVendor && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingVendor(null)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                >
-                  {editingVendor ? 'Update Vendor' : 'Add Vendor'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Vendors List */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {vendors.map((vendor) => (
-              <div key={vendor.id} className="bg-white rounded-lg shadow-md p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-2">
-                  {vendor.name}
-                </h4>
-                <p className="text-sm text-gray-600 mb-2">{vendor.location}</p>
-                <div className="mb-4">
-                  <h5 className="text-sm font-medium text-gray-700 mb-1">Materials:</h5>
-                  <div className="flex flex-wrap gap-1">
-                    {vendor.materials.map((material, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                      >
-                        {material}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Contact: {vendor.contact}
-                </p>
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => setEditingVendor(vendor)}
-                    className="text-green-600 hover:text-green-700 text-sm font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteVendor(vendor.id)}
-                    className="text-red-600 hover:text-red-700 text-sm font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
