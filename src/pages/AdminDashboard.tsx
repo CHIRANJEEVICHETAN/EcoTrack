@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, query, getDocs, updateDoc, doc, deleteDoc, where } from 'firebase/firestore';
-import { ChartBarIcon, UsersIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { collection, query, getDocs, updateDoc, doc, deleteDoc, where, addDoc } from 'firebase/firestore';
+import { ChartBarIcon, UsersIcon, TrashIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
+import { getAuth, deleteUser as deleteFirebaseUser } from 'firebase/auth';
 
 interface WasteItem {
   id: string;
@@ -24,12 +25,21 @@ interface UserData {
   joinDate: Date;
 }
 
+interface Vendor {
+  id: string;
+  name: string;
+  location: string;
+  materials: string[];
+  contact: string;
+}
+
 export default function AdminDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [wasteItems, setWasteItems] = useState<WasteItem[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({
@@ -37,6 +47,15 @@ export default function AdminDashboard() {
     totalItems: 0,
     completedItems: 0,
     pendingItems: 0,
+  });
+
+  // New vendor form state
+  const [newVendor, setNewVendor] = useState({
+    name: '',
+    location: '',
+    contact: '',
+    materials: [] as string[],
+    newMaterial: '', // For the material input field
   });
 
   useEffect(() => {
@@ -57,7 +76,7 @@ export default function AdminDashboard() {
         })) as WasteItem[];
         setWasteItems(wasteData);
 
-        // Fetch users
+        // Fetch users from Firestore
         const usersQuery = query(collection(db, 'users'));
         const usersSnapshot = await getDocs(usersQuery);
         const usersData = await Promise.all(
@@ -69,13 +88,23 @@ export default function AdminDashboard() {
             const userWasteSnapshot = await getDocs(userWasteQuery);
             return {
               uid: doc.id,
-              ...doc.data(),
+              email: doc.data().email || '',
+              displayName: doc.data().displayName || null,
               itemsRecycled: userWasteSnapshot.docs.length,
               joinDate: doc.data().createdAt?.toDate() || new Date(),
             } as UserData;
           })
         );
         setUsers(usersData);
+
+        // Fetch vendors
+        const vendorsQuery = query(collection(db, 'vendors'));
+        const vendorsSnapshot = await getDocs(vendorsQuery);
+        const vendorsData = vendorsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Vendor[];
+        setVendors(vendorsData);
 
         // Calculate statistics
         setStats({
@@ -94,6 +123,64 @@ export default function AdminDashboard() {
 
     fetchData();
   }, [currentUser, navigate]);
+
+  const addVendor = async () => {
+    try {
+      if (!newVendor.name || !newVendor.location || !newVendor.contact) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      const vendorData = {
+        name: newVendor.name,
+        location: newVendor.location,
+        contact: newVendor.contact,
+        materials: newVendor.materials,
+      };
+
+      const docRef = await addDoc(collection(db, 'vendors'), vendorData);
+      setVendors([...vendors, { ...vendorData, id: docRef.id }]);
+
+      // Reset form
+      setNewVendor({
+        name: '',
+        location: '',
+        contact: '',
+        materials: [],
+        newMaterial: '',
+      });
+    } catch (error) {
+      console.error('Error adding vendor:', error);
+      setError('Failed to add vendor');
+    }
+  };
+
+  const deleteVendor = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'vendors', id));
+      setVendors(vendors.filter(vendor => vendor.id !== id));
+    } catch (error) {
+      console.error('Error deleting vendor:', error);
+      setError('Failed to delete vendor');
+    }
+  };
+
+  const addMaterial = () => {
+    if (newVendor.newMaterial.trim()) {
+      setNewVendor({
+        ...newVendor,
+        materials: [...newVendor.materials, newVendor.newMaterial.trim()],
+        newMaterial: '',
+      });
+    }
+  };
+
+  const removeMaterial = (index: number) => {
+    setNewVendor({
+      ...newVendor,
+      materials: newVendor.materials.filter((_, i) => i !== index),
+    });
+  };
 
   const updateWasteStatus = async (id: string, status: string) => {
     try {
@@ -119,7 +206,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const deleteUser = async (uid: string) => {
+  const deleteUserData = async (uid: string) => {
     try {
       // Delete user's waste items
       const userWasteQuery = query(
@@ -131,13 +218,16 @@ export default function AdminDashboard() {
         userWasteSnapshot.docs.map(doc => deleteDoc(doc.ref))
       );
 
-      // Delete user document
+      // Delete user document from Firestore
       await deleteDoc(doc(db, 'users', uid));
 
+      // Update local state
       setUsers(prev => prev.filter(user => user.uid !== uid));
+
+      setError('User data deleted successfully');
     } catch (error) {
-      console.error('Error deleting user:', error);
-      setError('Failed to delete user');
+      console.error('Error deleting user data:', error);
+      setError('Failed to delete user data');
     }
   };
 
@@ -175,6 +265,16 @@ export default function AdminDashboard() {
           >
             <UsersIcon className="h-5 w-5 inline-block mr-2" />
             Users
+          </button>
+          <button
+            onClick={() => setActiveTab('vendors')}
+            className={`px-4 py-2 rounded-lg ${activeTab === 'vendors'
+              ? 'bg-green-600 text-white'
+              : 'text-gray-600 hover:bg-green-50'
+              }`}
+          >
+            <BuildingStorefrontIcon className="h-5 w-5 inline-block mr-2" />
+            Vendors
           </button>
           <button
             onClick={() => setActiveTab('waste')}
@@ -261,20 +361,158 @@ export default function AdminDashboard() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <ChartBarIcon className="h-6 w-6 text-gray-400" />
+                  <BuildingStorefrontIcon className="h-6 w-6 text-gray-400" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Pending Items
+                      Active Vendors
                     </dt>
                     <dd className="text-3xl font-semibold text-gray-900">
-                      {stats.pendingItems}
+                      {vendors.length}
                     </dd>
                   </dl>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'vendors' && (
+        <div className="space-y-6">
+          {/* Add New Vendor Form */}
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Vendor</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  value={newVendor.name}
+                  onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Location</label>
+                <input
+                  type="text"
+                  value={newVendor.location}
+                  onChange={(e) => setNewVendor({ ...newVendor, location: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Contact</label>
+                <input
+                  type="email"
+                  value={newVendor.contact}
+                  onChange={(e) => setNewVendor({ ...newVendor, contact: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Materials</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newVendor.newMaterial}
+                    onChange={(e) => setNewVendor({ ...newVendor, newMaterial: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    placeholder="Add material..."
+                  />
+                  <button
+                    onClick={addMaterial}
+                    className="mt-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {newVendor.materials.map((material, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      {material}
+                      <button
+                        onClick={() => removeMaterial(index)}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={addVendor}
+              className="mt-4 w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+            >
+              Add Vendor
+            </button>
+          </div>
+
+          {/* Vendors List */}
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vendor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Materials
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vendors.map((vendor) => (
+                  <tr key={vendor.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{vendor.location}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        {vendor.materials.map((material, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                          >
+                            {material}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{vendor.contact}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => deleteVendor(vendor.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -303,7 +541,7 @@ export default function AdminDashboard() {
                 <tr key={user.uid}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {user.displayName || user.email}
+                      {user.displayName || 'N/A'}
                     </div>
                     <div className="text-sm text-gray-500">{user.email}</div>
                   </td>
@@ -315,7 +553,7 @@ export default function AdminDashboard() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
-                      onClick={() => deleteUser(user.uid)}
+                      onClick={() => deleteUserData(user.uid)}
                       className="text-red-600 hover:text-red-900"
                     >
                       Delete
