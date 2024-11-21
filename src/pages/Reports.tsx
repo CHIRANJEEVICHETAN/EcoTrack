@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -7,10 +7,22 @@ import { useAuth } from '../contexts/AuthContext';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
+interface RecycleData {
+  materialType: string;
+  quantity: number;
+  purityRate: number;
+  electricity: number;
+  water: number;
+  labor: number;
+  timestamp: Date;
+}
+
 export default function Reports() {
   const { currentUser } = useAuth();
   const [monthlyData, setMonthlyData] = useState<{ month: string; electronics: number; batteries: number; others: number; }[]>([]);
   const [categoryData, setCategoryData] = useState<{ name: string; value: number; }[]>([]);
+  const [purityData, setPurityData] = useState<{ material: string; purity: number; }[]>([]);
+  const [resourceData, setResourceData] = useState<{ month: string; electricity: number; water: number; labor: number; }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('6months');
 
@@ -19,23 +31,40 @@ export default function Reports() {
       if (!currentUser) return;
 
       try {
+        // Fetch e-waste data
         const wasteQuery = query(
           collection(db, 'e-waste'),
           where('userId', '==', currentUser.uid)
         );
-        const snapshot = await getDocs(wasteQuery);
-        const items = snapshot.docs.map(doc => ({
+        const wasteSnapshot = await getDocs(wasteQuery);
+        const wasteItems = wasteSnapshot.docs.map(doc => ({
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate()
         }));
 
+        // Fetch recycling data
+        const recycleQuery = query(collection(db, 'recycleData'));
+        const recycleSnapshot = await getDocs(recycleQuery);
+        const recycleItems = recycleSnapshot.docs.map(doc => ({
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate()
+        })) as RecycleData[];
+
         // Process monthly data
-        const monthlyStats = processMonthlyData(items, dateRange);
+        const monthlyStats = processMonthlyData(wasteItems, dateRange);
         setMonthlyData(monthlyStats);
 
         // Process category data
-        const categoryStats = processCategoryData(items);
+        const categoryStats = processCategoryData(wasteItems);
         setCategoryData(categoryStats);
+
+        // Process purity data
+        const purityStats = processPurityData(recycleItems);
+        setPurityData(purityStats);
+
+        // Process resource usage data
+        const resourceStats = processResourceData(recycleItems);
+        setResourceData(resourceStats);
       } catch (error) {
         console.error('Error fetching report data:', error);
       }
@@ -46,6 +75,7 @@ export default function Reports() {
   }, [currentUser, dateRange]);
 
   const processMonthlyData = (items, range) => {
+    // Existing monthly data processing logic
     const months = range === '6months' ? 6 : 12;
     const monthlyStats = new Array(months).fill(null).map((_, index) => {
       const date = new Date();
@@ -76,7 +106,7 @@ export default function Reports() {
     return monthlyStats;
   };
 
-  const processCategoryData = (items): { name: string; value: number; }[] => {
+  const processCategoryData = (items) => {
     const categories: { [key: string]: number } = {};
     items.forEach(item => {
       categories[item.itemType] = (categories[item.itemType] || 0) + 1;
@@ -84,7 +114,41 @@ export default function Reports() {
 
     return Object.entries(categories).map(([name, value]) => ({
       name,
-      value: value as number
+      value
+    }));
+  };
+
+  const processPurityData = (items: RecycleData[]) => {
+    const purityRates: { [key: string]: number[] } = {};
+    items.forEach(item => {
+      if (!purityRates[item.materialType]) {
+        purityRates[item.materialType] = [];
+      }
+      purityRates[item.materialType].push(item.purityRate);
+    });
+
+    return Object.entries(purityRates).map(([material, rates]) => ({
+      material,
+      purity: rates.reduce((sum, rate) => sum + rate, 0) / rates.length
+    }));
+  };
+
+  const processResourceData = (items: RecycleData[]) => {
+    const monthlyResources: { [key: string]: { electricity: number; water: number; labor: number; } } = {};
+
+    items.forEach(item => {
+      const month = item.timestamp.toLocaleString('default', { month: 'short' });
+      if (!monthlyResources[month]) {
+        monthlyResources[month] = { electricity: 0, water: 0, labor: 0 };
+      }
+      monthlyResources[month].electricity += item.electricity;
+      monthlyResources[month].water += item.water;
+      monthlyResources[month].labor += item.labor;
+    });
+
+    return Object.entries(monthlyResources).map(([month, resources]) => ({
+      month,
+      ...resources
     }));
   };
 
@@ -93,7 +157,7 @@ export default function Reports() {
     
     // Add title and styling
     doc.setFontSize(20);
-    doc.setTextColor(34, 197, 94); // Green color
+    doc.setTextColor(34, 197, 94);
     doc.text('EcoTrack Recycling Report', 20, 20);
     
     // Add date and user info
@@ -116,27 +180,34 @@ export default function Reports() {
       );
       y += 10;
     });
-    
-    // Add category statistics
+
+    // Add purity rates
     y += 10;
     doc.setFontSize(16);
-    doc.text('Category Distribution:', 20, y);
+    doc.text('Material Purity Rates:', 20, y);
     y += 10;
-    
-    categoryData.forEach(item => {
+
+    purityData.forEach(item => {
       doc.setFontSize(12);
-      doc.text(`${item.name}: ${item.value} items`, 30, y);
+      doc.text(`${item.material}: ${item.purity.toFixed(1)}%`, 30, y);
       y += 10;
     });
-    
-    // Add summary
-    const totalItems = categoryData.reduce((sum, item) => sum + item.value, 0);
+
+    // Add resource usage
     y += 10;
     doc.setFontSize(16);
-    doc.text('Summary:', 20, y);
+    doc.text('Resource Usage Summary:', 20, y);
     y += 10;
-    doc.setFontSize(12);
-    doc.text(`Total Items Recycled: ${totalItems}`, 30, y);
+
+    resourceData.forEach(item => {
+      doc.setFontSize(12);
+      doc.text(
+        `${item.month}: Electricity - ${item.electricity}kWh, Water - ${item.water}L, Labor - ${item.labor}hrs`,
+        30,
+        y
+      );
+      y += 10;
+    });
     
     // Save the PDF
     doc.save('ecotrack-recycling-report.pdf');
@@ -169,7 +240,7 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Bar Chart */}
+        {/* Monthly Recycling Trends */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-4">Monthly Recycling Trends</h3>
           <div className="h-80">
@@ -188,7 +259,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Pie Chart */}
+        {/* Category Distribution */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-4">Category Distribution</h3>
           <div className="h-80">
@@ -214,9 +285,45 @@ export default function Reports() {
           </div>
         </div>
 
+        {/* Material Purity Rates */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4">Material Purity Rates</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={purityData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="material" />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="purity" fill="#8884d8" name="Purity Rate (%)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Resource Usage Trends */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4">Resource Usage Trends</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={resourceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="electricity" stroke="#8884d8" name="Electricity (kWh)" />
+                <Line type="monotone" dataKey="water" stroke="#82ca9d" name="Water (L)" />
+                <Line type="monotone" dataKey="labor" stroke="#ffc658" name="Labor (hrs)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         {/* Statistics Cards */}
         <div className="lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h4 className="text-lg font-semibold mb-2">Total Items Recycled</h4>
               <p className="text-3xl font-bold text-green-600">
@@ -224,15 +331,23 @@ export default function Reports() {
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h4 className="text-lg font-semibold mb-2">Most Recycled Category</h4>
+              <h4 className="text-lg font-semibold mb-2">Average Purity Rate</h4>
               <p className="text-3xl font-bold text-green-600">
-                {categoryData.sort((a, b) => b.value - a.value)[0]?.name || 'N/A'}
+                {purityData.length > 0
+                  ? (purityData.reduce((sum, item) => sum + item.purity, 0) / purityData.length).toFixed(1)
+                  : 0}%
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h4 className="text-lg font-semibold mb-2">Environmental Impact</h4>
+              <h4 className="text-lg font-semibold mb-2">Total Energy Used</h4>
               <p className="text-3xl font-bold text-green-600">
-                {(categoryData.reduce((sum, item) => sum + item.value, 0) * 0.5).toFixed(1)} kg CO₂
+                {resourceData.reduce((sum, item) => sum + item.electricity, 0)} kWh
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h4 className="text-lg font-semibold mb-2">Water Consumption</h4>
+              <p className="text-3xl font-bold text-green-600">
+                {resourceData.reduce((sum, item) => sum + item.water, 0)} L
               </p>
             </div>
           </div>
