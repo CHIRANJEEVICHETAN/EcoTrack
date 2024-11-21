@@ -15,6 +15,7 @@ And in the Profile tab give an option to add or delete profile photo. And also a
 Ok everything seems good, But the only issue is with the Admin Dashboard nothing is shown on this page. Also try to improve the front end UI of signIn and signUp page make it more attractive by adding some good background image or gradient background.
 
 ## Server.js
+```js
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -134,3 +135,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+```
