@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from './LanguageSelector';
 
 interface NavigationItem {
   name: string;
@@ -14,6 +16,7 @@ export default function Navbar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     try {
@@ -25,11 +28,11 @@ export default function Navbar() {
   };
 
   const navigation: NavigationItem[] = [
-    { name: 'Home', href: '/', public: true },
-    { name: 'Track E-Waste', href: '/track', public: false },
-    { name: 'Recycling Vendors', href: '/vendors', public: true },
-    { name: 'Reports', href: '/reports', public: false },
-    { name: 'Profile', href: '/profile', public: false },
+    { name: t('nav.home'), href: '/', public: true },
+    { name: t('nav.track'), href: '/track', public: false },
+    { name: t('nav.vendors'), href: '/vendors', public: true },
+    { name: t('nav.reports'), href: '/reports', public: false },
+    { name: t('nav.profile'), href: '/profile', public: false },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -39,7 +42,7 @@ export default function Navbar() {
       onClick={handleLogout}
       className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
     >
-      Sign Out
+      {t('nav.logout')}
     </button>
   ) : (
     <div className="flex space-x-4">
@@ -47,13 +50,13 @@ export default function Navbar() {
         to="/login"
         className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
       >
-        Login
+        {t('nav.login')}
       </Link>
       <Link
         to="/signup"
         className="bg-white text-green-600 hover:bg-green-50 px-3 py-2 rounded-md text-sm font-medium"
       >
-        Sign Up
+        {t('nav.signup')}
       </Link>
     </div>
   );
@@ -86,21 +89,10 @@ export default function Navbar() {
                         {item.name}
                       </Link>
                     ))}
-                  {currentUser?.email === 'admin@ecotrack.com' && (
-                    <Link
-                      to="/admin"
-                      className={`${
-                        isActive('/admin')
-                          ? 'bg-green-700 text-white'
-                          : 'text-green-100 hover:text-white hover:bg-green-700'
-                      } px-3 py-2 rounded-md text-sm font-medium transition-colors`}
-                    >
-                      Admin Dashboard
-                    </Link>
-                  )}
                 </div>
               </div>
-              <div className="hidden sm:flex sm:items-center">
+              <div className="hidden sm:flex sm:items-center sm:space-x-4">
+                <LanguageSelector />
                 {authLinks}
               </div>
               <div className="flex items-center sm:hidden">
@@ -133,20 +125,11 @@ export default function Navbar() {
                     {item.name}
                   </Link>
                 ))}
-              {currentUser?.email === 'admin@ecotrack.com' && (
-                <Link
-                  to="/admin"
-                  className={`${
-                    isActive('/admin')
-                      ? 'bg-green-700 text-white'
-                      : 'text-green-100 hover:text-white hover:bg-green-700'
-                  } block px-3 py-2 rounded-md text-base font-medium`}
-                >
-                  Admin Dashboard
-                </Link>
-              )}
               <div className="mt-4 border-t border-green-700 pt-4 px-3">
-                {authLinks}
+                <LanguageSelector />
+                <div className="mt-3">
+                  {authLinks}
+                </div>
               </div>
             </div>
           </Disclosure.Panel>

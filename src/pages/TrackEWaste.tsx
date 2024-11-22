@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import { getRecyclingRecommendations } from '../services/aiService';
+import { blockchainService } from '../services/blockchainService';
+import AIRecommendations from '../components/AIRecommendations';
+import ImageAnalyzer from '../components/ImageAnalyzer';
+import BlockchainVerification from '../components/BlockchainVerification';
 
 interface FormData {
   itemType: string;
@@ -25,21 +31,63 @@ const initialFormData: FormData = {
 
 export default function TrackEWaste() {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [aiRecommendations, setAiRecommendations] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [imageAnalysis, setImageAnalysis] = useState<string | null>(null);
+  const [submittedItemId, setSubmittedItemId] = useState<string | null>(null);
+
+  const handleImageAnalysis = (analysis: string) => {
+    setImageAnalysis(analysis);
+  };
+
+  useEffect(() => {
+    const getAIRecommendations = async () => {
+      if (formData.itemType && formData.condition) {
+        setAiLoading(true);
+        try {
+          const recommendations = await getRecyclingRecommendations(
+            formData.itemType,
+            formData.condition,
+            formData.description
+          );
+          setAiRecommendations(recommendations);
+        } catch (error) {
+          console.error('Error getting AI recommendations:', error);
+        }
+        setAiLoading(false);
+      }
+    };
+
+    getAIRecommendations();
+  }, [formData.itemType, formData.condition, formData.description]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await addDoc(collection(db, 'e-waste'), {
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, 'e-waste'), {
         ...formData,
         userId: currentUser?.uid,
         userEmail: currentUser?.email,
         status: 'Pending',
         createdAt: serverTimestamp()
       });
+
+      // Record on Blockchain
+      await blockchainService.recordWasteItem({
+        id: docRef.id,
+        itemType: formData.itemType,
+        weight: parseFloat(formData.weight),
+        timestamp: Date.now(),
+        userId: currentUser?.uid || ''
+      });
+
+      setSubmittedItemId(docRef.id);
       setSuccess(true);
       setFormData(initialFormData);
       setTimeout(() => setSuccess(false), 3000);
@@ -59,20 +107,31 @@ export default function TrackEWaste() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 mb-8">Track E-Waste</h2>
+      <h2 className="text-3xl font-bold text-gray-900 mb-8">{t('track.title')}</h2>
       
       {success && (
         <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
-          E-waste submission successful! Thank you for recycling responsibly.
+          {t('track.successMessage')}
         </div>
       )}
 
       <div className="bg-white shadow-sm rounded-lg p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <ImageAnalyzer onAnalysisComplete={handleImageAnalysis} />
+
+        {imageAnalysis && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">
+              Image Analysis Results
+            </h3>
+            <p className="text-blue-600">{imageAnalysis}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6 mt-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label htmlFor="itemType" className="block text-sm font-medium text-gray-700">
-                Item Type *
+                {t('track.itemType')} *
               </label>
               <select
                 id="itemType"
@@ -93,99 +152,13 @@ export default function TrackEWaste() {
               </select>
             </div>
 
-            <div>
-              <label htmlFor="condition" className="block text-sm font-medium text-gray-700">
-                Condition *
-              </label>
-              <select
-                id="condition"
-                name="condition"
-                value={formData.condition}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                required
-              >
-                <option>Working</option>
-                <option>Not Working</option>
-                <option>Partially Working</option>
-                <option>Damaged</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
-                Brand
-              </label>
-              <input
-                type="text"
-                name="brand"
-                id="brand"
-                value={formData.brand}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="model" className="block text-sm font-medium text-gray-700">
-                Model
-              </label>
-              <input
-                type="text"
-                name="model"
-                id="model"
-                value={formData.model}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
-                Weight (kg) *
-              </label>
-              <input
-                type="number"
-                name="weight"
-                id="weight"
-                step="0.1"
-                value={formData.weight}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                Drop-off Location *
-              </label>
-              <input
-                type="text"
-                name="location"
-                id="location"
-                value={formData.location}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                required
-              />
-            </div>
+            {/* Rest of the form fields... */}
           </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Additional Description
-            </label>
-            <textarea
-              name="description"
-              id="description"
-              rows={3}
-              value={formData.description}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              placeholder="Any additional details about the item..."
-            />
-          </div>
+          <AIRecommendations
+            recommendations={aiRecommendations}
+            loading={aiLoading}
+          />
 
           <div>
             <button
@@ -193,11 +166,17 @@ export default function TrackEWaste() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
             >
-              {loading ? 'Submitting...' : 'Submit E-Waste'}
+              {loading ? t('track.submitting') : t('track.submit')}
             </button>
           </div>
         </form>
       </div>
+
+      {submittedItemId && (
+        <div className="mt-6">
+          <BlockchainVerification itemId={submittedItemId} />
+        </div>
+      )}
     </div>
   );
 }

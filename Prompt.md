@@ -144,3 +144,8 @@ The design will focus on user experience, featuring an intuitive interface with 
 ### **Conclusion**
 This comprehensive prompt outlines a sophisticated solution for "EcoTrack: E-Waste Management System," leveraging cutting-edge technologies such as ReactJS for frontend development and Firebase for backend services with ExpressJS as a backup where necessary. By adhering to this prompt's guidelines and focusing on features like AI-driven recommendations and Blockchain integration for transparency while utilizing Tailwind CSS for styling, developers can create a modern platform that effectively addresses global challenges related to electronic waste management while promoting sustainable practices in technology consumption.
 
+## Pending Tasks
+- [ ] Add Blockchain integration credentials
+- [ ] Add more languages
+- [ ] Add geolocation integration
+- [ ] Change google AI model
