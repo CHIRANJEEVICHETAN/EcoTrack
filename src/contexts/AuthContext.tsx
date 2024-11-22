@@ -32,7 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper function to create user document in Firestore
   const createUserDocument = async (user: User) => {
     const userRef = doc(db, 'users', user.uid);
     await setDoc(userRef, {
@@ -44,43 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   async function signup(email: string, password: string) {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      await createUserDocument(userCredential.user);
-      return userCredential.user;
-    } catch (error) {
-      console.error('Signup error in AuthContext:', error);
-      throw error;
-    }
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await createUserDocument(userCredential.user);
   }
 
   async function login(email: string, password: string) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      return userCredential.user;
-    } catch (error) {
-      console.error('Login error in AuthContext:', error);
-      throw error;
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   }
 
   async function loginWithGoogle() {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await createUserDocument(result.user);
-      return result.user;
-    } catch (error) {
-      console.error('Google Sign-in error in AuthContext:', error);
-      throw error;
-    }
+    const result = await signInWithPopup(auth, googleProvider);
+    await createUserDocument(result.user);
   }
 
   async function logout() {
