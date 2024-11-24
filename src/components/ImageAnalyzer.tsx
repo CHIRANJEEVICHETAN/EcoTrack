@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { analyzeWasteImage } from '../services/aiService';
+import { handleImageUploadAndAnalyze } from '../services/aiService';
 
 interface ImageAnalyzerProps {
   onAnalysisComplete: (analysis: string) => void;
@@ -18,23 +18,13 @@ export default function ImageAnalyzer({ onAnalysisComplete }: ImageAnalyzerProps
 
     try {
       const file = acceptedFiles[0];
-      const reader = new FileReader();
-      
-      reader.onload = async () => {
-        try {
-          const base64Image = reader.result as string;
-          const analysis = await analyzeWasteImage(base64Image);
-          onAnalysisComplete(analysis);
-        } catch (err) {
-          setError('Failed to analyze image. Please try again.');
-        } finally {
-          setAnalyzing(false);
-        }
-      };
-
-      reader.readAsDataURL(file);
+      // Directly pass the File object to the analysis function
+      const analysis = await handleImageUploadAndAnalyze(file);
+      onAnalysisComplete(analysis);
     } catch (err) {
-      setError('Failed to process image. Please try again.');
+      setError('Failed to analyze image. Please try again.');
+      console.error('Analysis error:', err);
+    } finally {
       setAnalyzing(false);
     }
   }, [onAnalysisComplete]);
@@ -44,8 +34,10 @@ export default function ImageAnalyzer({ onAnalysisComplete }: ImageAnalyzerProps
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png']
     },
-    maxFiles: 1
+    maxFiles: 1,
+    maxSize: 10485760 // 10MB in bytes
   });
+
 
   return (
     <div className="mt-4">

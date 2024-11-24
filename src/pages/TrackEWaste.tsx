@@ -17,6 +17,7 @@ interface FormData {
   condition: string;
   location: string;
   description: string;
+  imageAnalysis?: string; // Added to store image analysis results
 }
 
 const initialFormData: FormData = {
@@ -26,7 +27,8 @@ const initialFormData: FormData = {
   weight: '',
   condition: 'Working',
   location: '',
-  description: ''
+  description: '',
+  imageAnalysis: '' // Initialize the new field
 };
 
 export default function TrackEWaste() {
@@ -37,11 +39,16 @@ export default function TrackEWaste() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [imageAnalysis, setImageAnalysis] = useState<string | null>(null);
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null);
 
   const handleImageAnalysis = (analysis: string) => {
-    setImageAnalysis(analysis);
+    // Update the form data with the image analysis results
+    setFormData(prev => ({
+      ...prev,
+      imageAnalysis: analysis,
+      // Optionally update description with analysis results
+      description: prev.description ? `${prev.description}\n\nImage Analysis:\n${analysis}` : analysis
+    }));
   };
 
   useEffect(() => {
@@ -69,7 +76,7 @@ export default function TrackEWaste() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Add to Firestore
+      // Add to Firestore with image analysis
       const docRef = await addDoc(collection(db, 'e-waste'), {
         ...formData,
         userId: currentUser?.uid,
@@ -118,12 +125,12 @@ export default function TrackEWaste() {
       <div className="bg-white shadow-sm rounded-lg p-6">
         <ImageAnalyzer onAnalysisComplete={handleImageAnalysis} />
 
-        {imageAnalysis && (
+        {formData.imageAnalysis && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-800 mb-2">
               Image Analysis Results
             </h3>
-            <p className="text-blue-600">{imageAnalysis}</p>
+            <p className="text-blue-600">{formData.imageAnalysis}</p>
           </div>
         )}
 
@@ -152,7 +159,93 @@ export default function TrackEWaste() {
               </select>
             </div>
 
-            {/* Rest of the form fields... */}
+            <div>
+              <label htmlFor="condition" className="block text-sm font-medium text-gray-700">
+                Condition *
+              </label>
+              <select
+                id="condition"
+                name="condition"
+                value={formData.condition}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                required
+              >
+                <option>Working</option>
+                <option>Not Working</option>
+                <option>Partially Working</option>
+                <option>Damaged</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
+                Brand
+              </label>
+              <input
+                type="text"
+                name="brand"
+                id="brand"
+                value={formData.brand}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="model" className="block text-sm font-medium text-gray-700">
+                Model
+              </label>
+              <input
+                type="text"
+                name="model"
+                id="model"
+                value={formData.model}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+                Weight (kg) *
+              </label>
+              <input
+                type="number"
+                name="weight"
+                id="weight"
+                step="0.1"
+                value={formData.weight}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                Drop-off Location *
+              </label>
+              <input
+                type="text"
+                name="location"
+                id="location"
+                value={formData.location}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Additional Description
+              </label>
+              <textarea
+                name="description"
+                id="description"
+                rows={3}
+                value={formData.description}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                placeholder="Any additional details about the item..."
+              />
+            </div>
           </div>
 
           <AIRecommendations
