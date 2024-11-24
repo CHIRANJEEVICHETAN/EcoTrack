@@ -1,11 +1,11 @@
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
-// const BLOCKCHAIN_NODE_URL = 'https://sepolia.infura.io/v3/your-infura-project-id';
-// const CONTRACT_ADDRESS = 'your-contract-address';
-// const CONTRACT_ABI = [
-//   // Add your smart contract ABI here
-// ];
+const BLOCKCHAIN_NODE_URL = 'https://sepolia.infura.io/v3/c8fb946653f34327b0d5178c52c2ff6f';
+const CONTRACT_ADDRESS = 'your-contract-address';
+const CONTRACT_ABI = [
+  // Add your smart contract ABI here
+];
 
 class BlockchainService {
   private web3: Web3;
