@@ -154,8 +154,6 @@ This comprehensive prompt outlines a sophisticated solution for "EcoTrack: E-Was
 
 Changed the Blockchain technology to use local development and gynache. Now trying to run `npx truffle migrate` but unable to run because of EsLint Configuration and finally resolved and got 2 credentials
 
-const CONTRACT_ADDRESS = '0xa7081e94c8f4B100409F57B2713A3Dc64152053A';
-const ADMIN_ADDRESS = '0xB07ae1511eE5d24Ab9C5F7CAaB3e9d865AafE63e';  
 
 Updated the credentials
 
