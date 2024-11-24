@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "server": "node src/api/server.ts"
+    "server": "node src/api/server.ts",
+    "ganache": "ganache --deterministic"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
@@ -16,12 +17,13 @@
     "@google/generative-ai": "^0.2.0",
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@truffle/contract": "^4.6.28",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
     "express": "^4.21.1",
     "firebase": "^10.14.1",
     "firebase-admin": "^11.11.1",
+    "ganache": "^7.9.1",
     "i18next": "^23.8.2",
     "i18next-browser-languagedetector": "^7.2.0",
     "i18next-http-backend": "^2.4.3",
@@ -35,6 +37,7 @@
     "react-i18next": "^14.0.5",
     "react-router-dom": "^6.15.0",
     "recharts": "^2.8.0",
+    "truffle": "^5.11.5",
     "web3": "^4.5.0"
   },
   "devDependencies": {

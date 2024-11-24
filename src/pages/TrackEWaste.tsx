@@ -5,7 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { getRecyclingRecommendations } from '../services/aiService';
 import { blockchainService } from '../services/blockchainService';
-import AIRecommendations from '../components/AIRecommendations';
+import AIRecommendations from "../components/AIRecommendation";
 import ImageAnalyzer from '../components/ImageAnalyzer';
 import BlockchainVerification from '../components/BlockchainVerification';
 

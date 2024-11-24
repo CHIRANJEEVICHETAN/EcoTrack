@@ -1,0 +1,13 @@
+{
+    "name": "ecotrack-blockchain",
+    "version": "0.1.0",
+    "type": "commonjs",
+    "scripts": {
+        "ganache": "ganache --port 8545"
+    },
+    "dependencies": {
+        "ganache": "^7.9.2",
+        "truffle": "^5.11.5",
+        "web3": "^4.5.0"
+    }
+}

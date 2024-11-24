@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
+  console.log('App component rendered');
   return (
     <AuthProvider>
       <ThemeProvider>

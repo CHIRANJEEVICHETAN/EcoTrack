@@ -1,10 +1,6 @@
-import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Load environment variables from .env file
-dotenv.config();
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || '');
 
 export interface RecyclingRecommendation {
   method: string;
