@@ -10,6 +10,7 @@ interface NavigationItem {
   name: string;
   href: string;
   public: boolean;
+  adminOnly?: boolean;
 }
 
 export default function Navbar() {
@@ -27,15 +28,24 @@ export default function Navbar() {
     }
   };
 
+  const isAdmin = currentUser?.email === 'admin@ecotrack.com';
+
   const navigation: NavigationItem[] = [
     { name: t('nav.home'), href: '/', public: true },
     { name: t('nav.track'), href: '/track', public: false },
+    { name: 'Track Submission', href: '/track-submission', public: false },
     { name: t('nav.vendors'), href: '/vendors', public: true },
     { name: t('nav.reports'), href: '/reports', public: false },
     { name: t('nav.profile'), href: '/profile', public: false },
+    { name: 'Admin Dashboard', href: '/admin', public: false, adminOnly: true },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const filteredNavigation = navigation.filter(item => {
+    if (item.adminOnly && !isAdmin) return false;
+    return item.public || currentUser;
+  });
 
   const authLinks = currentUser ? (
     <button
@@ -74,21 +84,18 @@ export default function Navbar() {
                   </Link>
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-                  {navigation
-                    .filter(item => item.public || currentUser)
-                    .map((item) => (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        className={`${
-                          isActive(item.href)
-                            ? 'bg-green-700 text-white'
-                            : 'text-green-100 hover:text-white hover:bg-green-700'
+                  {filteredNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`${isActive(item.href)
+                        ? 'bg-green-700 text-white'
+                        : 'text-green-100 hover:text-white hover:bg-green-700'
                         } px-3 py-2 rounded-md text-sm font-medium transition-colors`}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
                 </div>
               </div>
               <div className="hidden sm:flex sm:items-center sm:space-x-4">
@@ -110,21 +117,18 @@ export default function Navbar() {
 
           <Disclosure.Panel className="sm:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2">
-              {navigation
-                .filter(item => item.public || currentUser)
-                .map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`${
-                      isActive(item.href)
-                        ? 'bg-green-700 text-white'
-                        : 'text-green-100 hover:text-white hover:bg-green-700'
+              {filteredNavigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`${isActive(item.href)
+                    ? 'bg-green-700 text-white'
+                    : 'text-green-100 hover:text-white hover:bg-green-700'
                     } block px-3 py-2 rounded-md text-base font-medium`}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                >
+                  {item.name}
+                </Link>
+              ))}
               <div className="mt-4 border-t border-green-700 pt-4 px-3">
                 <LanguageSelector />
                 <div className="mt-3">

@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
+import TrackSubmission from './pages/TrackSubmission';
 
 function App() {
   console.log('App component rendered');
@@ -59,6 +60,7 @@ function App() {
                     </PrivateRoute>
                   }
                 />
+                <Route path="/track-submission/:id?" element={<TrackSubmission />} />
               </Routes>
             </main>
           </div>

@@ -8,6 +8,7 @@ import { blockchainService } from '../services/blockchainService';
 import AIRecommendations from "../components/AIRecommendation";
 import ImageAnalyzer from '../components/ImageAnalyzer';
 import BlockchainVerification from '../components/BlockchainVerification';
+import { Link } from 'react-router-dom';
 
 interface FormData {
   itemType: string;
@@ -79,7 +80,7 @@ export default function TrackEWaste() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Add to Firestore with image analysis
+      // Add to Firestore
       const docRef = await addDoc(collection(db, 'e-waste'), {
         ...formData,
         userId: currentUser?.uid,
@@ -89,26 +90,33 @@ export default function TrackEWaste() {
         imageUrl: formData.imageUrl || null
       });
 
-      // Record on Blockchain
-      await blockchainService.recordWasteItem({
-        id: docRef.id,
-        itemType: formData.itemType,
-        weight: parseFloat(formData.weight),
-        timestamp: Date.now(),
-        userId: currentUser?.uid || ''
-      });
+      // Try blockchain recording separately
+      try {
+        await blockchainService.recordWasteItem({
+          id: docRef.id,
+          itemType: formData.itemType,
+          weight: parseFloat(formData.weight),
+          timestamp: Date.now(),
+          userId: currentUser?.uid || ''
+        });
+      } catch (blockchainError) {
+        console.error('Blockchain recording failed:', blockchainError);
+        // Don't show alert here since Firestore submission was successful
+      }
 
       setSubmittedItemId(docRef.id);
       setSuccess(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      // Show success message and reset form after delay
       setTimeout(() => {
         setFormData(initialFormData);
         setSelectedImage(null);
         setSuccess(false);
-      }, 3000);
+      }, 5000);
+
     } catch (error) {
-      console.error('Error submitting e-waste:', error);
+      console.error('Error submitting to Firestore:', error);
+      alert('Error saving your submission. Please try again.');
     }
     setLoading(false);
   };
@@ -126,9 +134,19 @@ export default function TrackEWaste() {
       <h2 className="text-3xl font-bold text-gray-900 mb-8">{t('track.title')}</h2>
       
       {success && (
-        <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg flex items-center justify-between">
-          <span>{t('track.successMessage')}</span>
-          <svg className="h-5 w-5 text-green-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg flex items-center justify-between sticky top-0 z-50">
+          <div>
+            <span className="text-lg font-medium">{t('track.successMessage')}</span>
+            <div className="mt-2">
+              <Link
+                to={`/track-submission/${submittedItemId}`}
+                className="text-green-600 hover:text-green-800 underline"
+              >
+                Track your submission
+              </Link>
+            </div>
+          </div>
+          <svg className="h-6 w-6 text-green-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
             <path d="M5 13l4 4L19 7"></path>
           </svg>
         </div>
@@ -308,3 +326,16 @@ export default function TrackEWaste() {
     </div>
   );
 }
+
+// // Add a tracking page or section where users can look up their submissions
+// const TrackSubmission = ({ submissionId }: { submissionId: string }) => {
+//   return (
+//     <div className="container mx-auto p-4">
+//       <h2 className="text-xl font-bold mb-4">Track Your Submission</h2>
+//       <div className="mb-4">
+//         <p className="text-gray-700">Submission ID: {submissionId}</p>
+//       </div>
+//       <BlockchainVerification itemId={submissionId} />
+//     </div>
+//   );
+// };
