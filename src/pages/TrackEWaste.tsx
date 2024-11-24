@@ -17,7 +17,8 @@ interface FormData {
   condition: string;
   location: string;
   description: string;
-  imageAnalysis?: string; // Added to store image analysis results
+  imageAnalysis?: string;
+  imageUrl?: string;
 }
 
 const initialFormData: FormData = {
@@ -28,7 +29,8 @@ const initialFormData: FormData = {
   condition: 'Working',
   location: '',
   description: '',
-  imageAnalysis: '' // Initialize the new field
+  imageAnalysis: '',
+  imageUrl: ''
 };
 
 export default function TrackEWaste() {
@@ -40,15 +42,16 @@ export default function TrackEWaste() {
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const handleImageAnalysis = (analysis: string) => {
-    // Update the form data with the image analysis results
+  const handleImageAnalysis = (analysis: string, imageUrl: string) => {
     setFormData(prev => ({
       ...prev,
       imageAnalysis: analysis,
-      // Optionally update description with analysis results
+      imageUrl: imageUrl,
       description: prev.description ? `${prev.description}\n\nImage Analysis:\n${analysis}` : analysis
     }));
+    setSelectedImage(imageUrl);
   };
 
   useEffect(() => {
@@ -82,7 +85,8 @@ export default function TrackEWaste() {
         userId: currentUser?.uid,
         userEmail: currentUser?.email,
         status: 'Pending',
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        imageUrl: formData.imageUrl || null
       });
 
       // Record on Blockchain
@@ -96,8 +100,13 @@ export default function TrackEWaste() {
 
       setSubmittedItemId(docRef.id);
       setSuccess(true);
-      setFormData(initialFormData);
-      setTimeout(() => setSuccess(false), 3000);
+
+      // Show success message and reset form after delay
+      setTimeout(() => {
+        setFormData(initialFormData);
+        setSelectedImage(null);
+        setSuccess(false);
+      }, 3000);
     } catch (error) {
       console.error('Error submitting e-waste:', error);
     }
@@ -117,20 +126,36 @@ export default function TrackEWaste() {
       <h2 className="text-3xl font-bold text-gray-900 mb-8">{t('track.title')}</h2>
       
       {success && (
-        <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
-          {t('track.successMessage')}
+        <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg flex items-center justify-between">
+          <span>{t('track.successMessage')}</span>
+          <svg className="h-5 w-5 text-green-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+            <path d="M5 13l4 4L19 7"></path>
+          </svg>
         </div>
       )}
 
       <div className="bg-white shadow-sm rounded-lg p-6">
         <ImageAnalyzer onAnalysisComplete={handleImageAnalysis} />
 
+        {selectedImage && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Image:</h4>
+            <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+              <img
+                src={selectedImage}
+                alt="Uploaded e-waste"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        )}
+
         {formData.imageAnalysis && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-800 mb-2">
               Image Analysis Results
             </h3>
-            <p className="text-blue-600">{formData.imageAnalysis}</p>
+            <p className="text-blue-600 whitespace-pre-line">{formData.imageAnalysis}</p>
           </div>
         )}
 
@@ -232,7 +257,7 @@ export default function TrackEWaste() {
                 required
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label htmlFor="description" className="block text-sm font-medium text-gray-700">
                 Additional Description
               </label>
@@ -257,9 +282,19 @@ export default function TrackEWaste() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? t('track.submitting') : t('track.submit')}
+              {loading ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {t('track.submitting')}
+                </div>
+              ) : (
+                t('track.submit')
+              )}
             </button>
           </div>
         </form>

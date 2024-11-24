@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCircleIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, PencilIcon, CameraIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -10,12 +10,15 @@ interface UserStats {
   itemsRecycled: number;
   environmentalImpact: string;
   recyclingPoints: number;
+  carbonSaved: number;
+  treesEquivalent: number;
 }
 
 interface WasteItem {
   itemType: string;
   createdAt: Date;
   status: string;
+  weight: number;
 }
 
 export default function UserProfile() {
@@ -24,6 +27,8 @@ export default function UserProfile() {
     itemsRecycled: 0,
     environmentalImpact: '0',
     recyclingPoints: 0,
+    carbonSaved: 0,
+    treesEquivalent: 0
   });
   const [recentActivity, setRecentActivity] = useState<WasteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +37,7 @@ export default function UserProfile() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -48,15 +54,18 @@ export default function UserProfile() {
           createdAt: doc.data().createdAt?.toDate(),
         })) as WasteItem[];
 
-        // Calculate stats
+        // Calculate enhanced stats
         const totalItems = wasteItems.length;
-        const environmentalImpact = (totalItems * 0.02).toFixed(2);
-        const recyclingPoints = totalItems * 20;
+        const totalWeight = wasteItems.reduce((sum, item) => sum + (item.weight || 0), 0);
+        const carbonSaved = totalWeight * 2.5; // Approximate CO2 savings per kg
+        const treesEquivalent = carbonSaved / 21.7; // Average CO2 absorption per tree per year
 
         setUserStats({
           itemsRecycled: totalItems,
-          environmentalImpact: `${environmentalImpact} tons`,
-          recyclingPoints: recyclingPoints,
+          environmentalImpact: `${(totalWeight * 0.02).toFixed(2)} tons`,
+          recyclingPoints: totalItems * 20,
+          carbonSaved: parseFloat(carbonSaved.toFixed(2)),
+          treesEquivalent: parseFloat(treesEquivalent.toFixed(1))
         });
 
         // Sort by date and get recent items
@@ -93,6 +102,7 @@ export default function UserProfile() {
       await updateProfile(currentUser!, { photoURL });
       setSuccess('Profile photo updated successfully');
       setTimeout(() => setSuccess(''), 3000);
+      setShowPhotoOptions(false);
     } catch (error) {
       console.error('Error uploading photo:', error);
       setError('Failed to upload photo');
@@ -110,6 +120,7 @@ export default function UserProfile() {
       await updateProfile(currentUser, { photoURL: null });
       setSuccess('Profile photo removed successfully');
       setTimeout(() => setSuccess(''), 3000);
+      setShowPhotoOptions(false);
     } catch (error) {
       console.error('Error deleting photo:', error);
       setError('Failed to delete photo');
@@ -151,31 +162,53 @@ export default function UserProfile() {
       <div className="bg-white shadow-md rounded-lg">
         <div className="px-4 py-5 sm:px-6">
           <div className="flex items-center">
-            <div className="relative">
+            <div className="relative group">
               {currentUser?.photoURL ? (
                 <img
                   src={currentUser.photoURL}
                   alt="Profile"
                   className="h-24 w-24 rounded-full object-cover"
+                  onClick={() => setShowPhotoOptions(!showPhotoOptions)}
                 />
               ) : (
-                <UserCircleIcon className="h-24 w-24 text-gray-400" />
+                  <UserCircleIcon
+                    className="h-24 w-24 text-gray-400 cursor-pointer"
+                    onClick={() => setShowPhotoOptions(!showPhotoOptions)}
+                  />
               )}
-              <label
-                htmlFor="photo-upload"
-                className="absolute bottom-0 right-0 bg-green-600 rounded-full p-2 cursor-pointer hover:bg-green-700"
+              <button
+                onClick={() => setShowPhotoOptions(!showPhotoOptions)}
+                className="absolute bottom-0 right-0 bg-green-600 rounded-full p-2 text-white hover:bg-green-700"
               >
-                <PencilIcon className="h-4 w-4 text-white" />
-                <input
-                  type="file"
-                  id="photo-upload"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhotoUpload}
-                  disabled={uploading}
-                />
-              </label>
+                <CameraIcon className="h-4 w-4" />
+              </button>
+
+              {showPhotoOptions && (
+                <div className="absolute mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                  <div className="py-1">
+                    <label className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      Upload New Photo
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        disabled={uploading}
+                      />
+                    </label>
+                    {currentUser?.photoURL && (
+                      <button
+                        onClick={handlePhotoDelete}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-gray-100"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
             <div className="ml-6 flex-1">
               <div className="flex items-center justify-between">
                 {isEditingName ? (
@@ -210,14 +243,6 @@ export default function UserProfile() {
                       </button>
                     </h2>
                 )}
-                {currentUser?.photoURL && (
-                  <button
-                    onClick={handlePhotoDelete}
-                    className="text-red-600 hover:text-red-700 text-sm"
-                  >
-                    Remove Photo
-                  </button>
-                )}
               </div>
               <p className="text-sm text-gray-500">
                 Member since{' '}
@@ -230,66 +255,74 @@ export default function UserProfile() {
         </div>
 
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
-            <div className="sm:col-span-1">
-              <dt className="text-sm font-medium text-gray-500">Email</dt>
-              <dd className="mt-1 text-sm text-gray-900">{currentUser?.email}</dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-sm font-medium text-gray-500">Recent Activity</dt>
-              <dd className="mt-1 text-sm text-gray-900">
-                <ul className="divide-y divide-gray-200">
-                  {recentActivity.map((item, index) => (
-                    <li key={index} className="py-3 flex justify-between">
-                      <span>
-                        Recycled {item.itemType} - {item.createdAt.toLocaleDateString()}
-                      </span>
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === 'Completed'
-                            ? 'bg-green-100 text-green-800'
-                            : item.status === 'In Progress'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                      >
-                        {item.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </dd>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-          <h3 className="text-lg font-medium text-gray-900">Recycling Statistics</h3>
+          <h3 className="text-lg font-medium text-gray-900">Environmental Impact</h3>
           <dl className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">
-                Total Items Recycled
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
+              <dt className="text-sm font-medium text-green-600 truncate">
+                Carbon Saved
               </dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                {userStats.itemsRecycled}
+              <dd className="mt-1 text-3xl font-semibold text-green-900">
+                {userStats.carbonSaved} kg CO₂
               </dd>
             </div>
-            <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">
-                Environmental Impact
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
+              <dt className="text-sm font-medium text-green-600 truncate">
+                Trees Equivalent
               </dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                {userStats.environmentalImpact}
+              <dd className="mt-1 text-3xl font-semibold text-green-900">
+                {userStats.treesEquivalent} trees
               </dd>
             </div>
-            <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-gray-500 truncate">
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
+              <dt className="text-sm font-medium text-green-600 truncate">
                 Recycling Points
               </dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+              <dd className="mt-1 text-3xl font-semibold text-green-900">
                 {userStats.recyclingPoints}
               </dd>
             </div>
           </dl>
+        </div>
+
+        <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+          <div className="flow-root">
+            <ul className="-mb-8">
+              {recentActivity.map((item, index) => (
+                <li key={index}>
+                  <div className="relative pb-8">
+                    {index !== recentActivity.length - 1 ? (
+                      <span
+                        className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <div className="relative flex space-x-3">
+                      <div>
+                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${item.status === 'Completed' ? 'bg-green-500' : 'bg-gray-400'
+                          }`}>
+                          <TrashIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                        <div>
+                          <p className="text-sm text-gray-500">
+                            Recycled <span className="font-medium text-gray-900">{item.itemType}</span>
+                            {item.weight && ` (${item.weight} kg)`}
+                          </p>
+                        </div>
+                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                          <time dateTime={item.createdAt.toISOString()}>
+                            {item.createdAt.toLocaleDateString()}
+                          </time>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Achievement Badges */}
@@ -297,40 +330,81 @@ export default function UserProfile() {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Achievements</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {userStats.itemsRecycled >= 5 && (
-              <div className="text-center">
+              <div className="text-center transform hover:scale-105 transition-transform">
                 <div className="bg-green-100 p-4 rounded-full inline-block">
                   <span className="text-2xl">🌱</span>
                 </div>
                 <p className="mt-2 text-sm font-medium">Eco Starter</p>
+                <p className="text-xs text-gray-500">Recycled 5+ items</p>
               </div>
             )}
             {userStats.itemsRecycled >= 10 && (
-              <div className="text-center">
+              <div className="text-center transform hover:scale-105 transition-transform">
                 <div className="bg-green-100 p-4 rounded-full inline-block">
                   <span className="text-2xl">🌿</span>
                 </div>
                 <p className="mt-2 text-sm font-medium">Green Warrior</p>
+                <p className="text-xs text-gray-500">Recycled 10+ items</p>
               </div>
             )}
-            {userStats.recyclingPoints >= 200 && (
-              <div className="text-center">
-                <div className="bg-green-100 p-4 rounded-full inline-block">
+            {userStats.carbonSaved >= 100 && (
+              <div className="text-center transform hover:scale-105 transition-transform">
+                <div className="bg-green-100 p-4 rounded-full
+inline-block">
                   <span className="text-2xl">🌍</span>
                 </div>
                 <p className="mt-2 text-sm font-medium">Earth Protector</p>
+                <p className="text-xs text-gray-500">Saved 100+ kg CO₂</p>
               </div>
             )}
-            {userStats.itemsRecycled >= 20 && (
-              <div className="text-center">
+            {userStats.treesEquivalent >= 5 && (
+              <div className="text-center transform hover:scale-105 transition-transform">
                 <div className="bg-green-100 p-4 rounded-full inline-block">
-                  <span className="text-2xl">⭐</span>
+                  <span className="text-2xl">🌳</span>
                 </div>
-                <p className="mt-2 text-sm font-medium">Recycling Star</p>
+                <p className="mt-2 text-sm font-medium">Forest Guardian</p>
+                <p className="text-xs text-gray-500">Equivalent to 5+ trees</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Recycling Goals */}
+        <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Recycling Goals</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm font-medium">
+                <span>Monthly Recycling Goal</span>
+                <span>{Math.min(userStats.itemsRecycled, 10)}/10 items</span>
+              </div>
+              <div className="mt-2 relative">
+                <div className="overflow-hidden h-2 text-xs flex rounded bg-green-100">
+                  <div
+                    style={{ width: `${Math.min((userStats.itemsRecycled / 10) * 100, 100)}%` }}
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm font-medium">
+                <span>Carbon Saving Goal</span>
+                <span>{Math.min(userStats.carbonSaved, 200)}/200 kg CO₂</span>
+              </div>
+              <div className="mt-2 relative">
+                <div className="overflow-hidden h-2 text-xs flex rounded bg-green-100">
+                  <div
+                    style={{ width: `${Math.min((userStats.carbonSaved / 200) * 100, 100)}%` }}
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
