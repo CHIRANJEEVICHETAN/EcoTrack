@@ -15,7 +15,7 @@ export default function BlockchainVerification({ itemId }: BlockchainVerificatio
     setError(null);
     try {
       const data = await blockchainService.getWasteItemHistory(itemId);
-      setHistory(data);
+      setHistory([data]);
     } catch (err) {
       setError('Blockchain verification pending. Your submission has been recorded successfully.');
       console.error('Blockchain fetch error:', err);
