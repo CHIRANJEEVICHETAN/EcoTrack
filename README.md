@@ -1,70 +1,172 @@
-# EcoTrack
+# EcoTrack - E-Waste Management System
 
-[Edit in StackBlitz next generation editor ⚡️](https://stackblitz.com/~/github.com/CHIRANJEEVICHETAN/EcoTrack)
+EcoTrack is a comprehensive full-stack web application designed to facilitate efficient tracking, segregation, and recycling of electronic waste (e-waste). The platform leverages modern technologies including AI-powered recommendations, blockchain verification, and multilingual support.
 
-## Setup Guide
+## 🌟 Features
 
-### 1. Install Dependencies
+- **E-Waste Tracking**: Real-time tracking from generation to final disposal
+- **AI-Powered Waste Segregation**: Smart recommendations using Google's Generative AI
+- **Blockchain Integration**: Tamper-proof ledger for transparency
+- **Vendor Verification**: Robust vetting and rating system
+- **Data Visualization**: Interactive dashboards and analytics
+- **Multilingual Support**: Available in multiple languages
+- **User Profiles**: Track individual contributions and impact
+
+## 🚀 Tech Stack
+
+- **Frontend**: React.js with TypeScript
+- **Styling**: Tailwind CSS
+- **Backend**: Firebase
+- **Blockchain**: Local Ganache/Truffle setup
+- **AI**: Google Generative AI
+- **Authentication**: Firebase Auth
+- **Database**: Firestore
+- **Charts**: Recharts
+- **PDF Generation**: jsPDF
+- **Internationalization**: i18next
+
+## 📋 Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- Ganache (for local blockchain)
+- Google Cloud API Key (for AI features)
+- Firebase account
+
+## 🛠️ Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ecotrack.git
+cd ecotrack
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-### 2. Start Local Blockchain
+3. Set up environment variables:
+Create a `.env` file in the root directory:
+```env
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_GOOGLE_API_KEY=your_google_api_key
+```
+
+4. Start the local blockchain:
 ```bash
+cd Blockchain
+npm install
 npm run ganache
 ```
 
-### 3. Deploy Smart Contract
+5. Deploy smart contracts:
 ```bash
 npx truffle migrate
 ```
 
-### 4. Start Development Server
+6. Start the development server:
 ```bash
 npm run dev
 ```
 
-## AI Recommendations Guide
+## 🌐 Available Languages
 
-The AI system provides recommendations for e-waste recycling using Google's Generative AI. To use this feature:
+- English (en)
+- Spanish (es)
+- More languages can be added in the i18n configuration
 
-1. Upload an image of the e-waste item using the image analyzer
-2. Fill in the item details in the form
-3. The AI will automatically provide:
-   - Best recycling method
-   - Environmental impact assessment
-   - Additional considerations
+## 🔐 Authentication
 
-### AI Features:
-- Image Analysis: Analyzes uploaded images to identify materials and recycling difficulty
-- Recycling Recommendations: Suggests optimal recycling methods
-- Environmental Impact Assessment: Evaluates the environmental impact
+The system supports multiple authentication methods:
+- Email/Password
+- Google Sign-in
 
-## Blockchain Integration Guide
+## 👥 User Roles
 
-The project uses a local Ganache blockchain for development. Each e-waste item is tracked on the blockchain with:
+1. **Regular Users**
+   - Submit e-waste items
+   - Track recycling status
+   - View personal impact
 
-1. Item Registration: Records new items with unique IDs
-2. Status Updates: Tracks item status changes
-3. Vendor Verification: Validates recycling vendors
-4. Transaction History: Views complete item lifecycle
+2. **Vendors**
+   - Process e-waste submissions
+   - Update recycling status
+   - Submit processing data
 
-### Using Blockchain Features:
-1. Ensure Ganache is running (`npm run ganache`)
-2. Submit e-waste items through the form
-3. Track items using the blockchain verification component
-4. View transaction history in the admin dashboard
+3. **Administrators**
+   - Manage users and vendors
+   - View system analytics
+   - Verify vendors
 
-## Smart Contract Details
-- Location: `contracts/EWasteTracking.sol`
-- Features:
-  - Waste Item Tracking
-  - Vendor Management
-  - Status Updates
-  - Transaction History
+## 📊 Features in Detail
 
-## Development Notes
-- Ganache runs on `http://127.0.0.1:8545`
-- First Ganache account is used as admin
-- Smart contract is automatically deployed on first run
-- AI features require a valid Google API key in `.env`
+### E-Waste Submission
+- Image analysis using AI
+- Automatic categorization
+- Real-time tracking
+- Blockchain verification
+
+### Vendor Management
+- Certification verification
+- Performance metrics
+- Resource usage tracking
+- Material purity rates
+
+### Analytics Dashboard
+- Recycling trends
+- Environmental impact
+- User contributions
+- Resource utilization
+
+## 🔧 Development
+
+### Running Tests
+```bash
+npm run test
+```
+
+### Building for Production
+```bash
+npm run build
+```
+
+### Blockchain Development
+```bash
+# Start local blockchain
+npm run ganache
+
+# Deploy contracts
+npx truffle migrate
+
+# Deploy to testnet
+npx truffle migrate --network testnet
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Google Generative AI for waste analysis
+- Firebase for backend services
+- Truffle Suite for blockchain development
+- All contributors and supporters
+
+## 📞 Support
+
+For support, email support@ecotrack.com or join our Slack channel.

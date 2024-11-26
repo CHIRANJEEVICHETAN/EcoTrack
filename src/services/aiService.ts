@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || '');
 
@@ -14,7 +14,7 @@ export interface RecyclingRecommendation {
 }
 
 // Function to prepare image part for Gemini
-async function fileToGenerativePart(file: File) {
+async function fileToGenerativePart(file: File): Promise<Part> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {

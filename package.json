@@ -16,7 +16,6 @@
     "@emotion/styled": "^11.11.0",
     "@google/generative-ai": "^0.2.0",
     "@headlessui/react": "^1.7.17",
-    "@heroicons/react": "^2.0.18",
     "@truffle/contract": "^4.6.28",
     "cors": "^2.8.5",
     "ethers": "^6.11.1",
