@@ -70,7 +70,7 @@ class BlockchainService {
         )
         .send({
           from: account.address,
-          gas: Math.floor(gas * 1.5)
+          gas: (gas * BigInt(150) / BigInt(100)).toString()
         });
 
       return transaction.transactionHash;
@@ -114,7 +114,7 @@ class BlockchainService {
         .verifyVendor(vendorId, certifications)
         .send({
           from: account.address,
-          gas: Math.floor(gas * 1.5)
+          gas: (gas * BigInt(150) / BigInt(100)).toString()
         });
 
       return transaction.transactionHash;
