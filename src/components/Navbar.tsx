@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure, Transition } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import LanguageSelector from './LanguageSelector';
 
 interface NavigationItem {
   name: string;
@@ -30,7 +29,7 @@ export default function Navbar() {
 
   const navigation: NavigationItem[] = [
     { name: 'Home', href: '/', public: true },
-    { name: 'Track', href: '/track', public: false },
+    { name: 'Track E-Waste', href: '/track', public: false },
     { name: 'Track Submission', href: '/track-submission', public: false },
     { name: 'Vendors', href: '/vendors', public: true },
     { name: 'Reports', href: '/reports', public: false },
@@ -101,7 +100,6 @@ export default function Navbar() {
                 </div>
               </div>
               <div className="hidden sm:flex sm:items-center sm:space-x-6">
-                <LanguageSelector />
                 {authLinks}
               </div>
               <div className="flex items-center sm:hidden">
@@ -143,9 +141,6 @@ export default function Navbar() {
                     {item.name}
                   </Disclosure.Button>
                 ))}
-                <div className="mt-4 px-3">
-                  <LanguageSelector />
-                </div>
                 <div className="mt-4 border-t border-green-700 pt-4">
                   {authLinks}
                 </div>
