@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { TranslationProvider } from './contexts/TranslationContext'; // Add this import
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import TrackEWaste from './pages/TrackEWaste';
@@ -19,6 +20,7 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
+        <TranslationProvider>
         <Router>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
             <Navbar />
@@ -65,6 +67,7 @@ function App() {
             </main>
           </div>
         </Router>
+        </TranslationProvider>
       </ThemeProvider>
     </AuthProvider>
   );

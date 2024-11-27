@@ -1,9 +1,8 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Disclosure } from '@headlessui/react';
+import { Disclosure, Transition } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
 
 interface NavigationItem {
@@ -17,7 +16,6 @@ export default function Navbar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
 
   const handleLogout = async () => {
     try {
@@ -31,12 +29,12 @@ export default function Navbar() {
   const isAdmin = currentUser?.email === 'admin@ecotrack.com';
 
   const navigation: NavigationItem[] = [
-    { name: t('nav.home'), href: '/', public: true },
-    { name: t('nav.track'), href: '/track', public: false },
+    { name: 'Home', href: '/', public: true },
+    { name: 'Track', href: '/track', public: false },
     { name: 'Track Submission', href: '/track-submission', public: false },
-    { name: t('nav.vendors'), href: '/vendors', public: true },
-    { name: t('nav.reports'), href: '/reports', public: false },
-    { name: t('nav.profile'), href: '/profile', public: false },
+    { name: 'Vendors', href: '/vendors', public: true },
+    { name: 'Reports', href: '/reports', public: false },
+    { name: 'Profile', href: '/profile', public: false },
     { name: 'Admin Dashboard', href: '/admin', public: false, adminOnly: true },
   ];
 
@@ -50,36 +48,39 @@ export default function Navbar() {
   const authLinks = currentUser ? (
     <button
       onClick={handleLogout}
-      className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+      className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium
+                transition-colors duration-200 hover:bg-green-700"
     >
-      {t('nav.logout')}
+      Logout
     </button>
   ) : (
-    <div className="flex space-x-4">
+    <div className="flex items-center space-x-4">
       <Link
         to="/login"
-        className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+        className="text-green-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium
+                   transition-colors duration-200 hover:bg-green-700"
       >
-        {t('nav.login')}
+        Login
       </Link>
       <Link
         to="/signup"
-        className="bg-white text-green-600 hover:bg-green-50 px-3 py-2 rounded-md text-sm font-medium"
+        className="bg-white text-green-600 hover:bg-green-50 px-3 py-2 rounded-md text-sm font-medium
+                   transition-colors duration-200"
       >
-        {t('nav.signup')}
+        Sign Up
       </Link>
     </div>
   );
 
   return (
-    <Disclosure as="nav" className="bg-green-600">
+    <Disclosure as="nav" className="bg-green-600 shadow-lg">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 items-center justify-between">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Link to="/" className="text-white text-xl font-bold">
+                  <Link to="/" className="text-white text-xl font-bold hover:text-green-100 transition-colors duration-200">
                     EcoTrack
                   </Link>
                 </div>
@@ -88,22 +89,25 @@ export default function Navbar() {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`${isActive(item.href)
-                        ? 'bg-green-700 text-white'
-                        : 'text-green-100 hover:text-white hover:bg-green-700'
-                        } px-3 py-2 rounded-md text-sm font-medium transition-colors`}
+                      className={`${
+                        isActive(item.href)
+                          ? 'bg-green-700 text-white'
+                          : 'text-green-100 hover:text-white hover:bg-green-700'
+                      } px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200`}
                     >
                       {item.name}
                     </Link>
                   ))}
                 </div>
               </div>
-              <div className="hidden sm:flex sm:items-center sm:space-x-4">
+              <div className="hidden sm:flex sm:items-center sm:space-x-6">
                 <LanguageSelector />
                 {authLinks}
               </div>
               <div className="flex items-center sm:hidden">
-                <Disclosure.Button className="inline-flex items-center justify-center rounded-md p-2 text-green-100 hover:bg-green-700 hover:text-white">
+                <Disclosure.Button className="inline-flex items-center justify-center rounded-md p-2 text-green-100 
+                                            hover:bg-green-700 hover:text-white focus:outline-none focus:ring-2 
+                                            focus:ring-inset focus:ring-white transition-colors duration-200">
                   <span className="sr-only">Open main menu</span>
                   {open ? (
                     <XMarkIcon className="block h-6 w-6" aria-hidden="true" />
@@ -115,28 +119,39 @@ export default function Navbar() {
             </div>
           </div>
 
-          <Disclosure.Panel className="sm:hidden">
-            <div className="space-y-1 px-2 pb-3 pt-2">
-              {filteredNavigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`${isActive(item.href)
-                    ? 'bg-green-700 text-white'
-                    : 'text-green-100 hover:text-white hover:bg-green-700'
-                    } block px-3 py-2 rounded-md text-base font-medium`}
-                >
-                  {item.name}
-                </Link>
-              ))}
-              <div className="mt-4 border-t border-green-700 pt-4 px-3">
-                <LanguageSelector />
-                <div className="mt-3">
+          <Transition
+            enter="transition duration-100 ease-out"
+            enterFrom="transform scale-95 opacity-0"
+            enterTo="transform scale-100 opacity-100"
+            leave="transition duration-75 ease-out"
+            leaveFrom="transform scale-100 opacity-100"
+            leaveTo="transform scale-95 opacity-0"
+          >
+            <Disclosure.Panel className="sm:hidden">
+              <div className="space-y-1 px-2 pb-3 pt-2">
+                {filteredNavigation.map((item) => (
+                  <Disclosure.Button
+                    key={item.name}
+                    as={Link}
+                    to={item.href}
+                    className={`${
+                      isActive(item.href)
+                        ? 'bg-green-700 text-white'
+                        : 'text-green-100 hover:text-white hover:bg-green-700'
+                    } block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200`}
+                  >
+                    {item.name}
+                  </Disclosure.Button>
+                ))}
+                <div className="mt-4 px-3">
+                  <LanguageSelector />
+                </div>
+                <div className="mt-4 border-t border-green-700 pt-4">
                   {authLinks}
                 </div>
               </div>
-            </div>
-          </Disclosure.Panel>
+            </Disclosure.Panel>
+          </Transition>
         </>
       )}
     </Disclosure>
