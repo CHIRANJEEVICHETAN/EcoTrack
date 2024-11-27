@@ -1,8 +1,11 @@
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
-// Replace hardcoded values with Vite environment variables
-const BLOCKCHAIN_NODE_URL = import.meta.env.VITE_BLOCKCHAIN_NODE_URL || 'http://127.0.0.1:8545';
+// Use Sepolia testnet for production
+const BLOCKCHAIN_NODE_URL = import.meta.env.VITE_NODE_ENV === 'production' 
+  ? `https://sepolia.infura.io/v3/${import.meta.env.VITE_INFURA_PROJECT_ID}`
+  : 'http://127.0.0.1:8545';
+
 const ADMIN_PRIVATE_KEY = import.meta.env.VITE_ADMIN_PRIVATE_KEY || '';
 
 class BlockchainService {
@@ -12,20 +15,19 @@ class BlockchainService {
 
   constructor() {
     this.web3 = new Web3(BLOCKCHAIN_NODE_URL);
-    this.contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '';
+    // Use different contract addresses for development and production
+    this.contractAddress = import.meta.env.VITE_NODE_ENV === 'production'
+      ? import.meta.env.VITE_PRODUCTION_CONTRACT_ADDRESS
+      : import.meta.env.VITE_CONTRACT_ADDRESS || '';
     this.initializeContract();
   }
 
   private async initializeContract() {
     try {
-      // Get the network ID
       const networkId = await this.web3.eth.net.getId();
-      
-      // Get contract instance without build file dependency
       const response = await fetch('/contracts/EWasteTracking.json');
       const contractJson = await response.json();
       
-      // Initialize contract instance
       this.contract = new this.web3.eth.Contract(
         contractJson.abi,
         this.contractAddress
@@ -68,7 +70,7 @@ class BlockchainService {
         )
         .send({
           from: account.address,
-          gas: Math.floor(gas * 1.5) // Add 50% buffer for gas estimation
+          gas: Math.floor(gas * 1.5)
         });
 
       return transaction.transactionHash;
@@ -122,7 +124,6 @@ class BlockchainService {
     }
   }
 
-  // Helper method to check connection
   async isConnected(): Promise<boolean> {
     try {
       await this.web3.eth.net.isListening();
