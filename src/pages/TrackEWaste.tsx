@@ -244,19 +244,25 @@ export default function TrackEWaste() {
               />
             </div>
             <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
-                Weight (kg) *
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Weight (kg)</label>
               <input
                 type="number"
                 name="weight"
-                id="weight"
-                step="0.1"
                 value={formData.weight}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (isNaN(value) || value < 0 || value > 1000) {
+                    return; // Don't update if invalid
+                  }
+                  setFormData({ ...formData, weight: e.target.value });
+                }}
+                min="0"
+                max="1000"
+                step="0.1"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
                 required
               />
+              <p className="mt-1 text-sm text-gray-500">Maximum weight: 1000 kg</p>
             </div>
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700">

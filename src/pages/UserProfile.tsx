@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { UserCircleIcon, PencilIcon, CameraIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
+import { db, storage } from '../config/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 
 interface UserStats {
@@ -56,14 +56,28 @@ export default function UserProfile() {
 
         // Calculate enhanced stats
         const totalItems = wasteItems.length;
-        const totalWeight = wasteItems.reduce((sum, item) => sum + (item.weight || 0), 0);
-        const carbonSaved = totalWeight * 2.5; // Approximate CO2 savings per kg
-        const treesEquivalent = carbonSaved / 21.7; // Average CO2 absorption per tree per year
+        const totalWeight = wasteItems.reduce((sum, item) => {
+          // Convert weight to number and validate
+          const weight = typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight;
+          
+          // Skip invalid weights or weights over 1000kg
+          if (isNaN(weight) || weight < 0 || weight > 1000) {
+            return sum;
+          }
+          return sum + weight;
+        }, 0);
+
+        // Environmental impact calculations with strict limits
+        // CO2 savings: 0.1 kg CO2 per kg of e-waste
+        // Tree absorption: 200 kg CO2 per tree per year
+        const carbonSaved = Math.min(totalWeight * 0.1, 1000000);  // Cap at 1000 tons CO2
+        const treesEquivalent = Math.min(carbonSaved / 200, 5000);  // Cap at 5000 trees
+        const environmentalImpact = Math.min(totalWeight * 0.001, 1000).toFixed(2); // Convert to tons with a cap of 1000 tons
 
         setUserStats({
           itemsRecycled: totalItems,
-          environmentalImpact: `${(totalWeight * 0.02).toFixed(2)} tons`,
-          recyclingPoints: totalItems * 20,
+          environmentalImpact: `${environmentalImpact} tons`,
+          recyclingPoints: Math.min(totalItems * 20, 10000), // Cap points at 10000
           carbonSaved: parseFloat(carbonSaved.toFixed(2)),
           treesEquivalent: parseFloat(treesEquivalent.toFixed(1))
         });
@@ -95,7 +109,6 @@ export default function UserProfile() {
     setUploading(true);
     setError('');
     try {
-      const storage = getStorage();
       const photoRef = ref(storage, `profile-photos/${currentUser?.uid}`);
       await uploadBytes(photoRef, file);
       const photoURL = await getDownloadURL(photoRef);
@@ -114,7 +127,6 @@ export default function UserProfile() {
     if (!currentUser?.photoURL) return;
 
     try {
-      const storage = getStorage();
       const photoRef = ref(storage, `profile-photos/${currentUser.uid}`);
       await deleteObject(photoRef);
       await updateProfile(currentUser, { photoURL: null });
@@ -407,4 +419,3 @@ inline-block">
     </div>
   );
 }
-
