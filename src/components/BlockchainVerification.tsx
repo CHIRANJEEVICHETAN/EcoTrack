@@ -90,18 +90,45 @@ export default function BlockchainVerification({ itemId }: BlockchainVerificatio
         <ul className="divide-y divide-gray-200">
           {history.map((record, index) => (
             <li key={index} className="px-4 py-4">
-              <div className="flex items-center justify-between">
+              <div className="space-y-2">
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    Transaction Hash: {record.transactionHash}
+                    Transaction Hash:
                   </p>
-                  <p className="text-sm text-gray-500">
-                    Timestamp: {new Date(record.timestamp * 1000).toLocaleString()}
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-mono text-blue-600 break-all">
+                      {record.transactionHash || 'Pending verification...'}
+                    </p>
+                    {record.transactionHash && (
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${record.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="View on Etherscan"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Timestamp:
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {record.timestamp ? new Date(record.timestamp * 1000).toLocaleString() : 'Pending...'}
                   </p>
                 </div>
-                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                  Verified
-                </span>
+                <div className="flex items-center mt-2">
+                  <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="ml-2 text-sm text-green-600 font-medium">Verified</span>
+                </div>
               </div>
             </li>
           ))}
