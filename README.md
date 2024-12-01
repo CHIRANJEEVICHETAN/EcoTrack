@@ -1,3 +1,5 @@
+[![Netlify Status](https://api.netlify.com/api/v1/badges/f69a45ed-4a5f-4392-b6cb-2060975d285b/deploy-status)](https://app.netlify.com/sites/e-waste-ecotrack/deploys)
+
 # EcoTrack - E-Waste Management System
 
 EcoTrack is a comprehensive full-stack web application designed to facilitate efficient tracking, segregation, and recycling of electronic waste (e-waste). The platform leverages modern technologies including AI-powered recommendations, blockchain verification, and multilingual support.
