@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure, Transition } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-
+// import { Feedback  from './../pages/Feedback';
 interface NavigationItem {
   name: string;
   href: string;
@@ -29,12 +29,13 @@ export default function Navbar() {
 
   const navigation: NavigationItem[] = [
     { name: 'Home', href: '/', public: true },
-    { name: 'Track E-Waste', href: '/track', public: false },
-    { name: 'Track Submission', href: '/track-submission', public: false },
+    { name: 'Track E-Waste', href: '/track', public: false }, 
+    { name: 'Track Submission', href: '/track-submission', public: true },
     { name: 'Vendors', href: '/vendors', public: true },
     { name: 'Reports', href: '/reports', public: false },
     { name: 'Profile', href: '/profile', public: false },
     { name: 'Admin Dashboard', href: '/admin', public: false, adminOnly: true },
+    { name: 'Feedback', href: '/feedback', public: true },
   ];
 
   const isActive = (path: string) => location.pathname === path;
