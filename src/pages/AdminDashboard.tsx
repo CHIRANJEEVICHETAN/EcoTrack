@@ -70,6 +70,8 @@ export default function AdminDashboard() {
     newMaterial: '', // For the material input field
   });
 
+  const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
+
   const fetchData = async () => {
     try {
       // Fetch waste items
@@ -178,6 +180,7 @@ export default function AdminDashboard() {
 
   async function handleVendorApproval(requestId: string, status: 'approved' | 'rejected') {
     try {
+      setLoadingRequestId(requestId);
       await updateDoc(doc(db, 'vendorRequests', requestId), {
         status,
         updatedAt: new Date(),
@@ -188,6 +191,8 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Error updating vendor status:', err);
       setError('Failed to update vendor status');
+    } finally {
+      setLoadingRequestId(null);
     }
   }
 
@@ -451,7 +456,7 @@ export default function AdminDashboard() {
                       <div className="text-sm text-gray-500">{request.email}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{request.certifications}</div>
+                      <div className="text-sm text-gray-900">Documents: {request.certifications}</div>
                       <div className="text-sm text-gray-500">Achievements: {request.achievements}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -468,14 +473,16 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => handleVendorApproval(request.id, 'approved')}
                             className="text-green-600 hover:text-green-900"
+                            disabled={loadingRequestId === request.id}
                           >
-                            Approve
+                            {loadingRequestId === request.id ? 'Approving...' : 'Approve'}
                           </button>
                           <button
                             onClick={() => handleVendorApproval(request.id, 'rejected')}
                             className="text-red-600 hover:text-red-900"
+                            disabled={loadingRequestId === request.id}
                           >
-                            Reject
+                            {loadingRequestId === request.id ? 'Rejecting...' : 'Reject'}
                           </button>
                         </div>
                       )}
