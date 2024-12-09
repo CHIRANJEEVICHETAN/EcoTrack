@@ -5,7 +5,6 @@ import { db } from '../config/firebase';
 import { collection, query, getDocs, updateDoc, doc, deleteDoc, where, addDoc } from 'firebase/firestore';
 import { ChartBarIcon, UsersIcon, TrashIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { getAuth, deleteUser as deleteFirebaseUser } from 'firebase/auth';
-import { DocumentPlusIcon } from '@heroicons/react/24/outline';
 
 interface WasteItem {
   id: string;
@@ -39,11 +38,8 @@ interface VendorRequest {
   email: string;
   businessName: string;
   businessAddress: string;
-  documents: {
-    name: string;
-    type: 'certification' | 'achievement';
-    url: string;
-  }[];
+  certifications: string;
+  achievements: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
 }
@@ -73,8 +69,6 @@ export default function AdminDashboard() {
     materials: [] as string[],
     newMaterial: '', // For the material input field
   });
-
-  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -184,19 +178,16 @@ export default function AdminDashboard() {
 
   async function handleVendorApproval(requestId: string, status: 'approved' | 'rejected') {
     try {
-      setProcessingId(requestId);
       await updateDoc(doc(db, 'vendorRequests', requestId), {
         status,
         updatedAt: new Date(),
       });
       
       // Refresh the vendor requests
-      await fetchData();
+      fetchData();
     } catch (err) {
       console.error('Error updating vendor status:', err);
       setError('Failed to update vendor status');
-    } finally {
-      setProcessingId(null);
     }
   }
 
@@ -422,111 +413,78 @@ export default function AdminDashboard() {
         </div>
       )}
 
-{activeTab === 'vendors' && (
-  <div className="space-y-6">
-    {/* Vendor Requests Section */}
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Vendor Requests</h3>
-      </div>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Business Details
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Contact
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Documents
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {vendorRequests.map((request) => (
-            <tr key={request.id}>
-              <td className="px-6 py-4">
-                <div className="text-sm font-medium text-gray-900">{request.businessName}</div>
-                <div className="text-sm text-gray-500">{request.businessAddress}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-500">{request.email}</div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="space-y-2">
-                  {request.documents.map((doc, index) => (
-                    <a
-                      key={index}
-                      href={doc.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      <DocumentPlusIcon className="h-5 w-5 mr-2" />
-                      <span>{doc.name}</span>
-                      <span className="ml-1 text-xs text-gray-500">({doc.type})</span>
-                    </a>
-                  ))}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                  ${request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                    request.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                    'bg-red-100 text-red-800'}`}>
-                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                {request.status === 'pending' && (
-                  <div className="space-x-2">
-                    <button
-                      onClick={() => handleVendorApproval(request.id, 'approved')}
-                      disabled={processingId === request.id}
-                      className={`text-green-600 hover:text-green-900 ${
-                        processingId === request.id ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {processingId === request.id ? (
-                        <div className="flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-1"></div>
-                          Approving...
+      {activeTab === 'vendors' && (
+        <div className="space-y-6">
+          {/* Vendor Requests Section */}
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Pending Vendor Requests</h3>
+            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Business Details
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Certifications
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vendorRequests.map((request) => (
+                  <tr key={request.id}>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{request.businessName}</div>
+                      <div className="text-sm text-gray-500">{request.businessAddress}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{request.email}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">{request.certifications}</div>
+                      <div className="text-sm text-gray-500">Achievements: {request.achievements}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                          request.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                          'bg-red-100 text-red-800'}`}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {request.status === 'pending' && (
+                        <div className="space-x-2">
+                          <button
+                            onClick={() => handleVendorApproval(request.id, 'approved')}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleVendorApproval(request.id, 'rejected')}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Reject
+                          </button>
                         </div>
-                      ) : (
-                        'Approve'
                       )}
-                    </button>
-                    <button
-                      onClick={() => handleVendorApproval(request.id, 'rejected')}
-                      disabled={processingId === request.id}
-                      className={`text-red-600 hover:text-red-900 ${
-                        processingId === request.id ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {processingId === request.id ? (
-                        <div className="flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
-                          Rejecting...
-                        </div>
-                      ) : (
-                        'Reject'
-                      )}
-                    </button>
-                  </div>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {/* Add New Vendor Form */}
           <div className="bg-white shadow-md rounded-lg p-6">
