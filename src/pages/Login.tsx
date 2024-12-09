@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../config/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -9,12 +11,39 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = location.state?.message;
+
+  async function checkVendorApproval(email: string) {
+    const vendorQuery = query(
+      collection(db, 'vendorRequests'),
+      where('email', '==', email)
+    );
+    const querySnapshot = await getDocs(vendorQuery);
+    
+    if (!querySnapshot.empty) {
+      const vendorData = querySnapshot.docs[0].data();
+      if (vendorData.status === 'pending') {
+        throw new Error('Wait for admin approval');
+      }
+      return vendorData.status === 'approved';
+    }
+    return false;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
       setError('');
       setLoading(true);
+
+      if (email.endsWith('@vendor.ecotrack.com')) {
+        const isApproved = await checkVendorApproval(email);
+        if (!isApproved) {
+          throw new Error('Wait for admin approval');
+        }
+      }
+
       await login(email, password);
       navigate('/profile');
     } catch (err) {
@@ -53,13 +82,18 @@ export default function Login() {
         <div className="text-center">
           <h2 className="text-4xl font-extrabold text-white">Welcome Back</h2>
           <p className="mt-2 text-lg text-gray-200">
-            Continue your eco-friendly journey
+            Sign in to your account
           </p>
         </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="bg-white/95 backdrop-blur-md py-8 px-4 shadow-2xl rounded-xl sm:px-10">
+          {message && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-600 rounded-md p-3 text-sm">
+              {message}
+            </div>
+          )}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 rounded-md p-3 text-sm">
               {error}
@@ -80,23 +114,14 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 transition-colors duration-200"
-                  placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-sm font-medium text-green-600 hover:text-green-500 transition-colors duration-200"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
               <div className="mt-1">
                 <input
                   id="password"
@@ -106,8 +131,18 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 transition-colors duration-200"
-                  placeholder="••••••••"
                 />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link
+                  to="/forgot-password"
+                  className="font-medium text-green-600 hover:text-green-500 transition-colors duration-200"
+                >
+                  Forgot your password?
+                </Link>
               </div>
             </div>
 
@@ -149,12 +184,12 @@ export default function Login() {
           </div>
 
           <p className="mt-8 text-center text-sm text-gray-600">
-            Not a member yet?{' '}
+            Don't have an account?{' '}
             <Link
               to="/signup"
               className="font-medium text-green-600 hover:text-green-500 transition-colors duration-200"
             >
-              Create an account
+              Sign up
             </Link>
           </p>
         </div>

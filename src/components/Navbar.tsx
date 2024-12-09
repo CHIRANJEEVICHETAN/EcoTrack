@@ -30,7 +30,7 @@ export default function Navbar() {
   const navigation: NavigationItem[] = [
     { name: 'Home', href: '/', public: true },
     { name: 'Track E-Waste', href: '/track', public: false },
-    { name: 'Track Submission', href: '/track-submission', public: false },
+    { name: 'Track Submission', href: '/track-submission', public: true },
     { name: 'Vendors', href: '/vendors', public: true },
     { name: 'Reports', href: '/reports', public: false },
     { name: 'Profile', href: '/profile', public: false },

@@ -10,6 +10,7 @@ import Reports from './pages/Reports';
 import UserProfile from './pages/UserProfile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import VendorSignup from './pages/VendorSignup';
 import ForgotPassword from './pages/ForgotPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/vendor-signup" element={<VendorSignup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route
                   path="/track"

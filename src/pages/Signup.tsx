@@ -18,11 +18,18 @@ export default function Signup() {
       return setError('Passwords do not match');
     }
 
+    const isVendorEmail = email.endsWith('@vendor.ecotrack.com');
+
     try {
       setError('');
       setLoading(true);
       await signup(email, password);
-      navigate('/profile');
+      
+      if (isVendorEmail) {
+        navigate('/vendor-signup', { state: { email } });
+      } else {
+        navigate('/profile');
+      }
     } catch (err) {
       console.error('Signup error:', err);
       setError(err.message || 'Failed to create an account');
