@@ -2,17 +2,50 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import BlockchainVerification from '../components/BlockchainVerification';
 import { db } from '../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import { useAuth } from '../contexts/AuthContext';
+
+interface PickupRequest {
+  userName: string;
+  location: string;
+  contact: string;
+  items: string;
+  status: 'pending';
+  pickupDate: any;
+  vendorId: string;
+  userId: string;
+  createdAt: any;
+}
+
+interface SubmissionData {
+  id: string;
+  itemType: string;
+  brand: string;
+  model: string;
+  status: string;
+  location: string;
+  weight: string;
+  createdAt: any;
+  pickupRequested?: boolean;
+  vendorAssigned?: boolean;
+  vendorName?: string;
+  pickupStatus?: string;
+  assignedAt?: any;
+  pickupId?: string;
+  arrivalDate?: string;
+}
 
 export default function TrackSubmission() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [submissionId, setSubmissionId] = useState(id || '');
-    const [submission, setSubmission] = useState<any>(null);
+    const [submission, setSubmission] = useState<SubmissionData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
+    const { currentUser } = useAuth();
+    const [isRequestingPickup, setIsRequestingPickup] = useState(false);
 
     const handleTrack = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,11 +55,60 @@ export default function TrackSubmission() {
         setError('');
 
         try {
+            // Fetch e-waste submission
             const docRef = doc(db, 'e-waste', submissionId);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
-                setSubmission({ id: docSnap.id, ...docSnap.data() });
+                const ewasteData = docSnap.data();
+                let submissionData: SubmissionData = { 
+                    id: docSnap.id, 
+                    ...ewasteData,
+                    itemType: ewasteData.itemType || '',
+                    status: ewasteData.status || '',
+                    location: ewasteData.location || '',
+                    weight: ewasteData.weight || '',
+                    brand: ewasteData.brand || '',
+                    model: ewasteData.model || '',
+                    createdAt: ewasteData.createdAt
+                };
+
+                // If pickup is requested, fetch pickup details
+                if (ewasteData.pickupId) {
+                    const pickupRef = doc(db, 'pickups', ewasteData.pickupId);
+                    const pickupSnap = await getDoc(pickupRef);
+                    
+                    if (pickupSnap.exists()) {
+                        const pickupData = pickupSnap.data();
+                        
+                        // Add arrival date to submission data
+                        submissionData = {
+                            ...submissionData,
+                            pickupRequested: true,
+                            pickupId: ewasteData.pickupId,
+                            arrivalDate: pickupData.arrivalDate || null
+                        };
+                        
+                        // If vendor is assigned, fetch vendor details
+                        if (pickupData.vendorId) {
+                            const vendorRef = doc(db, 'vendors', pickupData.vendorId);
+                            const vendorSnap = await getDoc(vendorRef);
+                            
+                            if (vendorSnap.exists()) {
+                                submissionData = {
+                                    ...submissionData,
+                                    vendorAssigned: true,
+                                    vendorName: vendorSnap.data().name,
+                                    pickupStatus: pickupData.status,
+                                    assignedAt: pickupData.assignedAt,
+                                    arrivalDate: pickupData.arrivalDate
+                                };
+                            }
+                        }
+                    }
+                }
+
+                setSubmission(submissionData);
                 navigate(`/track-submission/${submissionId}`);
             } else {
                 setError('No submission found with this ID');
@@ -51,6 +133,48 @@ export default function TrackSubmission() {
             setTimeout(() => setCopied(false), 2000); // Reset copied state after 2 seconds
         } catch (err) {
             console.error('Failed to copy:', err);
+        }
+    };
+
+    const handleRequestPickup = async () => {
+        if (!currentUser || !submission) return;
+        
+        setIsRequestingPickup(true);
+        try {
+            const pickupData: PickupRequest = {
+                userName: currentUser.displayName || currentUser.email || 'Anonymous',
+                location: submission.location,
+                contact: currentUser.email || '',
+                items: `${submission.itemType} - ${submission.brand} ${submission.model}`,
+                status: 'pending',
+                pickupDate: serverTimestamp(),
+                vendorId: '',
+                userId: currentUser.uid,
+                createdAt: serverTimestamp()
+            };
+
+            // Create pickup request
+            const docRef = await addDoc(collection(db, 'pickups'), pickupData);
+            
+            // Update original submission
+            await updateDoc(doc(db, 'e-waste', submission.id), {
+                pickupRequested: true,
+                pickupId: docRef.id
+            });
+
+            // Update local state
+            setSubmission(prev => ({
+                ...prev,
+                pickupRequested: true,
+                pickupId: docRef.id
+            }));
+
+            alert('Pickup requested successfully! We will assign a vendor soon.');
+        } catch (error) {
+            console.error('Error requesting pickup:', error);
+            alert('Failed to request pickup. Please try again.');
+        } finally {
+            setIsRequestingPickup(false);
         }
     };
 
@@ -108,6 +232,63 @@ export default function TrackSubmission() {
                                 </p>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-medium mb-4">Pickup Service</h3>
+                        
+                        {submission.status === 'Pending' && !submission.pickupRequested && (
+                            <button
+                                onClick={handleRequestPickup}
+                                disabled={isRequestingPickup}
+                                className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                            >
+                                {isRequestingPickup ? 'Requesting Pickup...' : 'Request Pickup'}
+                            </button>
+                        )}
+                        
+                        {submission.pickupRequested && (
+                            <div className="bg-blue-50 p-4 rounded-md">
+                                {!submission.vendorAssigned ? (
+                                    <p className="text-blue-700">
+                                        Pickup requested! We will assign a vendor soon.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-blue-700 font-medium">Pickup Status</p>
+                                            <span className={`px-3 py-1 rounded-full text-sm ${
+                                                submission.pickupStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                submission.pickupStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                                submission.pickupStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                                'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                {submission.pickupStatus?.charAt(0).toUpperCase() + submission.pickupStatus?.slice(1) || 'Pending'}
+                                            </span>
+                                        </div>
+                                        <div className="text-blue-700">
+                                            <p><span className="font-medium">Assigned Vendor:</span> {submission.vendorName}</p>
+                                            {submission.assignedAt && (
+                                                <p className="text-sm">
+                                                    <span className="font-medium">Assigned on:</span>{' '}
+                                                    {submission.assignedAt.toDate().toLocaleDateString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {submission.pickupRequested && submission.vendorAssigned && (
+                                            <div className="mt-2">
+                                                <span className="text-sm font-medium text-gray-500 block mb-1">Expected Arrival:</span>
+                                                <span className="text-sm text-gray-900">
+                                                    {submission.arrivalDate 
+                                                        ? new Date(submission.arrivalDate).toLocaleDateString() 
+                                                        : 'Not scheduled yet'}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white shadow rounded-lg p-6">

@@ -16,6 +16,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
 import TrackSubmission from './pages/TrackSubmission';
 import Feedback from './pages/Feedback';
+import UserSubmissions from './pages/UserSubmissions';
+import ComplaintsForm from './pages/ComplaintsForm';
+import VendorDashboard from './pages/VendorDashboard';
+import UserDashboard from './pages/UserDashboard';
 
 function App() {
   console.log('App component rendered');
@@ -67,6 +71,21 @@ function App() {
                 />
                 <Route path="/track-submission/:id?" element={<TrackSubmission />} />
                 <Route path="/feedback" element={<Feedback />} />
+                <Route path="/user-submissions/:userId" element={<UserSubmissions />} />
+                <Route path="/complaints" element={<ComplaintsForm />} />
+                <Route
+                  path="/vendordashboard"
+                  element={
+                    <PrivateRoute>
+                      <VendorDashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route path="/dashboard" element={
+                  <PrivateRoute>
+                    <UserDashboard />
+                  </PrivateRoute>
+                } />
               </Routes>
             </main>
           </div>

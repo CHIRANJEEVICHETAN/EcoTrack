@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, query, getDocs, updateDoc, doc, deleteDoc, where, addDoc } from 'firebase/firestore';
-import { ChartBarIcon, UsersIcon, TrashIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
+import { collection, query, getDocs, updateDoc, doc, deleteDoc, where, addDoc, collectionGroup, serverTimestamp } from 'firebase/firestore';
+import { ChartBarIcon, UsersIcon, TrashIcon, BuildingStorefrontIcon, DocumentTextIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 import { getAuth, deleteUser as deleteFirebaseUser } from 'firebase/auth';
 
 interface WasteItem {
@@ -44,6 +44,32 @@ interface VendorRequest {
   createdAt: Date;
 }
 
+interface UserSubmission {
+  submissionId: string;
+  userId: string;
+}
+
+interface Complaint {
+  id: string;
+  userId: string;
+  userEmail: string;
+  subject: string;
+  complaintType: string;
+  priority: string;
+  description: string;
+  dateTime: string;
+  status: string;
+  attachmentUrl?: string;
+  createdAt: any;
+}
+
+interface Feedback {
+  id: string;
+  vendor: string;
+  feedback: string;
+  timestamp: any;
+}
+
 export default function AdminDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -71,6 +97,17 @@ export default function AdminDashboard() {
   });
 
   const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
+
+  const [userSubmissions, setUserSubmissions] = useState<UserSubmission[]>([]);
+
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({ show: false, message: '', type: 'success' });
 
   const fetchData = async () => {
     try {
@@ -138,6 +175,40 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
+  const fetchUserSubmissions = async () => {
+    try {
+      const submissionsData: UserSubmission[] = [];
+
+      // Use collectionGroup to query all SubmissionID collections
+      const submissionsQuery = query(collectionGroup(db, 'SubmissionID'));
+      const submissionsSnapshot = await getDocs(submissionsQuery);
+
+      console.log('Number of submissions found:', submissionsSnapshot.size); // Debug log
+
+      submissionsSnapshot.forEach(doc => {
+        const data = doc.data();
+        const path = doc.ref.path.split('/');
+        const userId = path[1]; // BlockChainSubmissionId/{userId}/SubmissionID/{docId}
+        
+        console.log('Document path:', doc.ref.path); // Debug log
+        console.log('Document data:', data); // Debug log
+
+        if (data.submissionId) {
+          submissionsData.push({
+            submissionId: data.submissionId,
+            userId: userId,
+          });
+        }
+      });
+
+      console.log('Processed submissions:', submissionsData); // Debug log
+      setUserSubmissions(submissionsData);
+    } catch (error) {
+      console.error('Error fetching user submissions:', error);
+      setError('Failed to load user submissions');
+    }
+  };
+
   useEffect(() => {
     if (currentUser?.email !== 'admin@ecotrack.com') {
       navigate('/');
@@ -145,6 +216,7 @@ export default function AdminDashboard() {
     }
 
     fetchData();
+    fetchUserSubmissions();
   }, [currentUser, navigate]);
 
   const addVendor = async () => {
@@ -272,6 +344,77 @@ export default function AdminDashboard() {
     }
   };
 
+  const assignVendorToPickup = async (pickupId: string, vendorId: string) => {
+    try {
+      await updateDoc(doc(db, 'pickups', pickupId), {
+        vendorId: vendorId,
+        assignedAt: serverTimestamp()
+      });
+      
+      // Optionally notify vendor
+      alert('Vendor assigned successfully!');
+    } catch (error) {
+      console.error('Error assigning vendor:', error);
+      alert('Failed to assign vendor');
+    }
+  };
+
+  const handleComplaintStatusUpdate = async (complaintId: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, 'complaints', complaintId), {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      setComplaints(prev => 
+        prev.map(complaint => 
+          complaint.id === complaintId 
+            ? { ...complaint, status: newStatus }
+            : complaint
+        )
+      );
+
+      setNotification({
+        show: true,
+        message: 'Complaint status updated successfully!',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating complaint status:', error);
+      setNotification({
+        show: true,
+        message: 'Failed to update complaint status',
+        type: 'error'
+      });
+    }
+  };
+
+  useEffect(() => {
+    const fetchComplaintsAndFeedback = async () => {
+      try {
+        // Fetch complaints
+        const complaintsSnapshot = await getDocs(collection(db, 'complaints'));
+        const complaintsData = complaintsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Complaint[];
+        setComplaints(complaintsData);
+
+        // Fetch feedback
+        const feedbackSnapshot = await getDocs(collection(db, 'feedback'));
+        const feedbackData = feedbackSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Feedback[];
+        setFeedbacks(feedbackData);
+      } catch (error) {
+        console.error('Error fetching complaints and feedback:', error);
+      }
+    };
+
+    fetchComplaintsAndFeedback();
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -324,6 +467,28 @@ export default function AdminDashboard() {
           >
             <TrashIcon className="h-5 w-5 inline-block mr-2" />
             E-Waste
+          </button>
+          <button
+            onClick={() => setActiveTab('complaints')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'complaints'
+                ? 'bg-green-600 text-white'
+                : 'text-gray-600 hover:bg-green-50'
+            }`}
+          >
+            <DocumentTextIcon className="h-5 w-5 inline-block mr-2" />
+            Complaints
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'feedback'
+                ? 'bg-green-600 text-white'
+                : 'text-gray-600 hover:bg-green-50'
+            }`}
+          >
+            <ChatBubbleLeftIcon className="h-5 w-5 inline-block mr-2" />
+            Feedback
           </button>
         </div>
       </div>
@@ -643,6 +808,9 @@ export default function AdminDashboard() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Join Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
+                  Submission ID
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -662,6 +830,14 @@ export default function AdminDashboard() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {user.joinDate.toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <Link
+                      to={`/user-submissions/${user.uid}`}
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      View Submissions
+                    </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
@@ -735,6 +911,123 @@ export default function AdminDashboard() {
                     >
                       Delete
                     </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'complaints' && (
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subject
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Priority
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {complaints.map((complaint) => (
+                <tr key={complaint.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{complaint.userEmail}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{complaint.subject}</div>
+                    <div className="text-sm text-gray-500">{complaint.description}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{complaint.complaintType}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${complaint.priority === 'High' ? 'bg-red-100 text-red-800' : 
+                        complaint.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
+                        'bg-green-100 text-green-800'}`}>
+                      {complaint.priority}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={complaint.status}
+                      onChange={(e) => handleComplaintStatusUpdate(complaint.id, e.target.value)}
+                      className="text-sm rounded-md border-gray-300"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(complaint.dateTime).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {complaint.attachmentUrl && (
+                      <a
+                        href={complaint.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:text-green-900 mr-4"
+                      >
+                        View Attachment
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'feedback' && (
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Vendor
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Feedback
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {feedbacks.map((feedback) => (
+                <tr key={feedback.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{feedback.vendor}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{feedback.feedback}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {feedback.timestamp?.toDate().toLocaleDateString()}
                   </td>
                 </tr>
               ))}

@@ -21,6 +21,67 @@ interface WasteItem {
   weight: number;
 }
 
+interface CarbonFootprint {
+  itemType: string;
+  weight: number;
+  carbonSaved: number;
+  energySaved: number;
+  waterSaved: number;
+  materialsSaved: string[];
+}
+
+interface TotalImpact {
+  carbonSaved: number;
+  energySaved: number;
+  waterSaved: number;
+}
+
+const calculateEnvironmentalImpact = (itemType: string, weight: number): CarbonFootprint => {
+  // AI-based coefficients for different e-waste types
+  const impactFactors: { [key: string]: { 
+    carbonPerKg: number,
+    energyPerKg: number,
+    waterPerKg: number,
+    materials: string[]
+  }} = {
+    'Smartphone': {
+      carbonPerKg: 70,  // kg CO2 per kg
+      energyPerKg: 150, // kWh per kg
+      waterPerKg: 1200, // liters per kg
+      materials: ['Gold', 'Silver', 'Palladium', 'Copper']
+    },
+    'Laptop': {
+      carbonPerKg: 350,
+      energyPerKg: 200,
+      waterPerKg: 1500,
+      materials: ['Aluminum', 'Copper', 'Gold', 'Lithium']
+    },
+    'Television': {
+      carbonPerKg: 120,
+      energyPerKg: 100,
+      waterPerKg: 800,
+      materials: ['Glass', 'Plastic', 'Copper', 'Lead']
+    },
+    'default': {
+      carbonPerKg: 100,
+      energyPerKg: 120,
+      waterPerKg: 1000,
+      materials: ['Metal', 'Plastic']
+    }
+  };
+
+  const factor = impactFactors[itemType] || impactFactors.default;
+  
+  return {
+    itemType,
+    weight,
+    carbonSaved: weight * factor.carbonPerKg,
+    energySaved: weight * factor.energyPerKg,
+    waterSaved: weight * factor.waterPerKg,
+    materialsSaved: factor.materials
+  };
+};
+
 export default function UserProfile() {
   const { currentUser } = useAuth();
   const [userStats, setUserStats] = useState<UserStats>({
@@ -38,6 +99,12 @@ export default function UserProfile() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPhotoOptions, setShowPhotoOptions] = useState(false);
+  const [totalImpact, setTotalImpact] = useState<TotalImpact>({
+    carbonSaved: 0,
+    energySaved: 0,
+    waterSaved: 0
+  });
+  const [impacts, setImpacts] = useState<CarbonFootprint[]>([]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -54,32 +121,26 @@ export default function UserProfile() {
           createdAt: doc.data().createdAt?.toDate(),
         })) as WasteItem[];
 
-        // Calculate enhanced stats
-        const totalItems = wasteItems.length;
-        const totalWeight = wasteItems.reduce((sum, item) => {
-          // Convert weight to number and validate
-          const weight = typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight;
-          
-          // Skip invalid weights or weights over 1000kg
-          if (isNaN(weight) || weight < 0 || weight > 1000) {
-            return sum;
-          }
-          return sum + weight;
-        }, 0);
+        // Calculate environmental impact using AI
+        const calculatedImpacts = wasteItems.map(item => 
+          calculateEnvironmentalImpact(item.itemType, Number(item.weight))
+        );
+        setImpacts(calculatedImpacts);
 
-        // Environmental impact calculations with strict limits
-        // CO2 savings: 0.1 kg CO2 per kg of e-waste
-        // Tree absorption: 200 kg CO2 per tree per year
-        const carbonSaved = Math.min(totalWeight * 0.1, 1000000);  // Cap at 1000 tons CO2
-        const treesEquivalent = Math.min(carbonSaved / 200, 5000);  // Cap at 5000 trees
-        const environmentalImpact = Math.min(totalWeight * 0.001, 1000).toFixed(2); // Convert to tons with a cap of 1000 tons
+        const calculatedTotalImpact = calculatedImpacts.reduce((acc, impact) => ({
+          carbonSaved: acc.carbonSaved + impact.carbonSaved,
+          energySaved: acc.energySaved + impact.energySaved,
+          waterSaved: acc.waterSaved + impact.waterSaved
+        }), { carbonSaved: 0, energySaved: 0, waterSaved: 0 });
+        
+        setTotalImpact(calculatedTotalImpact);
 
         setUserStats({
-          itemsRecycled: totalItems,
-          environmentalImpact: `${environmentalImpact} tons`,
-          recyclingPoints: Math.min(totalItems * 20, 10000), // Cap points at 10000
-          carbonSaved: parseFloat(carbonSaved.toFixed(2)),
-          treesEquivalent: parseFloat(treesEquivalent.toFixed(1))
+          itemsRecycled: wasteItems.length,
+          environmentalImpact: `${(calculatedTotalImpact.carbonSaved / 1000).toFixed(2)} tons`,
+          recyclingPoints: Math.min(wasteItems.length * 20, 10000),
+          carbonSaved: calculatedTotalImpact.carbonSaved,
+          treesEquivalent: Math.floor(calculatedTotalImpact.carbonSaved / 20)
         });
 
         // Sort by date and get recent items
@@ -412,6 +473,84 @@ inline-block">
                   ></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Environmental Impact Visualization */}
+        <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Detailed Environmental Impact</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Carbon Impact */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-2xl">🌍</span>
+                <span className="text-sm font-medium text-green-800 bg-green-200 px-3 py-1 rounded-full">
+                  Carbon Saved
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-green-900 mb-2">
+                {(userStats.carbonSaved / 1000).toFixed(2)}
+                <span className="text-lg font-normal ml-1">tons CO₂</span>
+              </div>
+              <p className="text-sm text-green-700">
+                Equivalent to {userStats.treesEquivalent} trees planted
+              </p>
+            </div>
+
+            {/* Energy Savings */}
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-100 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-2xl">⚡</span>
+                <span className="text-sm font-medium text-blue-800 bg-blue-200 px-3 py-1 rounded-full">
+                  Energy Saved
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-blue-900 mb-2">
+                {(totalImpact.energySaved).toFixed(0)}
+                <span className="text-lg font-normal ml-1">kWh</span>
+              </div>
+              <p className="text-sm text-blue-700">
+                Powers a home for {Math.floor(totalImpact.energySaved / 30)} days
+              </p>
+            </div>
+
+            {/* Water Conservation */}
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-2xl">💧</span>
+                <span className="text-sm font-medium text-purple-800 bg-purple-200 px-3 py-1 rounded-full">
+                  Water Saved
+                </span>
+              </div>
+              <div className="text-3xl font-bold text-purple-900 mb-2">
+                {(totalImpact.waterSaved / 1000).toFixed(1)}
+                <span className="text-lg font-normal ml-1">m³</span>
+              </div>
+              <p className="text-sm text-purple-700">
+                {Math.floor(totalImpact.waterSaved / 150)} showers worth of water
+              </p>
+            </div>
+          </div>
+
+          {/* Materials Recovered Visualization */}
+          <div className="mt-8">
+            <h4 className="text-md font-medium text-gray-900 mb-4">Materials Recovered</h4>
+            <div className="flex flex-wrap gap-3">
+              {Array.from(new Set(impacts.flatMap(i => i.materialsSaved))).map((material, index) => (
+                <span
+                  key={material}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    index % 4 === 0 ? 'bg-green-100 text-green-800' :
+                    index % 4 === 1 ? 'bg-blue-100 text-blue-800' :
+                    index % 4 === 2 ? 'bg-purple-100 text-purple-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}
+                >
+                  {material}
+                </span>
+              ))}
             </div>
           </div>
         </div>

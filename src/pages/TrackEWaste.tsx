@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { getRecyclingRecommendations } from '../services/aiService';
 import { blockchainService } from '../services/blockchainService';
 import AIRecommendations from "../components/AIRecommendation";
@@ -18,6 +18,32 @@ interface FormData {
   location: string;
   description: string;
   imageAnalysis?: string;
+  imageUrl?: string;
+}
+
+interface PickupRequest {
+  userName: string;
+  location: string;
+  contact: string;
+  items: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  pickupDate: any;
+  vendorId: string;
+  userId: string;
+  createdAt: any;
+}
+
+interface EWasteReport {
+  id: string;
+  itemType: string;
+  brand?: string;
+  model?: string;
+  location: string;
+  weight: string;
+  condition: string;
+  description?: string;
+  status: string;
+  userId: string;
   imageUrl?: string;
 }
 
@@ -102,6 +128,15 @@ export default function TrackEWaste() {
       }
 
       setSubmittedItemId(docRef.id);
+
+      // Store the submittedItemId in Firestore under BlockChainSubmissionId -> CurrentUser.uid -> SubmissionID -> docRef.id
+      if (currentUser?.uid) {
+        await setDoc(doc(db, 'BlockChainSubmissionId', currentUser.uid, 'SubmissionID', docRef.id), {
+          submissionId: docRef.id,
+          createdAt: serverTimestamp()
+        });
+      }
+
       setSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -124,6 +159,36 @@ export default function TrackEWaste() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleRequestPickup = async (ewaste: EWasteReport) => {
+    try {
+      if (!currentUser) {
+        alert('Please login to request pickup');
+        return;
+      }
+
+      // Create pickup request
+      const pickupData: PickupRequest = {
+        userName: currentUser.displayName || currentUser.email || 'Anonymous',
+        location: ewaste.location,
+        contact: currentUser.email || '',
+        items: `${ewaste.itemType} - ${ewaste.brand} ${ewaste.model}`,
+        status: 'pending',
+        pickupDate: serverTimestamp(),
+        vendorId: '', // This will be assigned by admin
+        userId: currentUser.uid,
+        createdAt: serverTimestamp()
+      };
+
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, 'pickups'), pickupData);
+      
+      alert('Pickup requested successfully! We will assign a vendor soon.');
+    } catch (error) {
+      console.error('Error requesting pickup:', error);
+      alert('Failed to request pickup. Please try again.');
+    }
   };
 
   return (
