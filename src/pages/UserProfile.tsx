@@ -222,7 +222,7 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
       )}
@@ -234,8 +234,8 @@ export default function UserProfile() {
 
       <div className="bg-white shadow-md rounded-lg">
         <div className="px-4 py-5 sm:px-6">
-          <div className="flex items-center">
-            <div className="relative group">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start">
+            <div className="relative group mb-4 sm:mb-0">
               {currentUser?.photoURL ? (
                 <img
                   src={currentUser.photoURL}
@@ -244,10 +244,10 @@ export default function UserProfile() {
                   onClick={() => setShowPhotoOptions(!showPhotoOptions)}
                 />
               ) : (
-                  <UserCircleIcon
-                    className="h-24 w-24 text-gray-400 cursor-pointer"
-                    onClick={() => setShowPhotoOptions(!showPhotoOptions)}
-                  />
+                <UserCircleIcon
+                  className="h-24 w-24 text-gray-400 cursor-pointer"
+                  onClick={() => setShowPhotoOptions(!showPhotoOptions)}
+                />
               )}
               <button
                 onClick={() => setShowPhotoOptions(!showPhotoOptions)}
@@ -257,7 +257,7 @@ export default function UserProfile() {
               </button>
 
               {showPhotoOptions && (
-                <div className="absolute mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                <div className="absolute mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                   <div className="py-1">
                     <label className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                       Upload New Photo
@@ -282,39 +282,41 @@ export default function UserProfile() {
               )}
             </div>
 
-            <div className="ml-6 flex-1">
-              <div className="flex items-center justify-between">
+            <div className="ml-0 sm:ml-6 flex-1 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start sm:justify-between">
                 {isEditingName ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                     <input
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                      className="rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 w-full sm:w-auto mb-2 sm:mb-0"
                     />
-                    <button
-                      onClick={handleNameUpdate}
-                      className="text-green-600 hover:text-green-700"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setIsEditingName(false)}
-                      className="text-gray-600 hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleNameUpdate}
+                        className="text-green-600 hover:text-green-700 px-3 py-1 rounded-md bg-green-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setIsEditingName(false)}
+                        className="text-gray-600 hover:text-gray-700 px-3 py-1 rounded-md bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2 sm:mb-0">
                     {currentUser?.displayName || currentUser?.email}
-                      <button
-                        onClick={() => setIsEditingName(true)}
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                    </h2>
+                    <button
+                      onClick={() => setIsEditingName(true)}
+                      className="text-green-600 hover:text-green-700"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </button>
+                  </h2>
                 )}
               </div>
               <p className="text-sm text-gray-500">
@@ -328,29 +330,23 @@ export default function UserProfile() {
         </div>
 
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-          <h3 className="text-lg font-medium text-gray-900">Environmental Impact</h3>
-          <dl className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-green-600 truncate">
-                Carbon Saved
-              </dt>
-              <dd className="mt-1 text-3xl font-semibold text-green-900">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Environmental Impact</h3>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden">
+              <dt className="text-sm font-medium text-green-600 truncate">Carbon Saved</dt>
+              <dd className="mt-1 text-2xl sm:text-3xl font-semibold text-green-900">
                 {userStats.carbonSaved} kg CO₂
               </dd>
             </div>
-            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-green-600 truncate">
-                Trees Equivalent
-              </dt>
-              <dd className="mt-1 text-3xl font-semibold text-green-900">
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden">
+              <dt className="text-sm font-medium text-green-600 truncate">Trees Equivalent</dt>
+              <dd className="mt-1 text-2xl sm:text-3xl font-semibold text-green-900">
                 {userStats.treesEquivalent} trees
               </dd>
             </div>
-            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden sm:p-6">
-              <dt className="text-sm font-medium text-green-600 truncate">
-                Recycling Points
-              </dt>
-              <dd className="mt-1 text-3xl font-semibold text-green-900">
+            <div className="px-4 py-5 bg-green-50 shadow rounded-lg overflow-hidden">
+              <dt className="text-sm font-medium text-green-600 truncate">Recycling Points</dt>
+              <dd className="mt-1 text-2xl sm:text-3xl font-semibold text-green-900">
                 {userStats.recyclingPoints}
               </dd>
             </div>
@@ -359,46 +355,47 @@ export default function UserProfile() {
 
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
-          <div className="flow-root">
-            <ul className="-mb-8">
-              {recentActivity.map((item, index) => (
-                <li key={index}>
-                  <div className="relative pb-8">
-                    {index !== recentActivity.length - 1 ? (
-                      <span
-                        className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${item.status === 'Completed' ? 'bg-green-500' : 'bg-gray-400'
-                          }`}>
-                          <TrashIcon className="h-5 w-5 text-white" aria-hidden="true" />
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+          <div className="overflow-x-auto">
+            <div className="inline-block min-w-full align-middle">
+              <div className="flow-root">
+                <ul className="-mb-8">
+                  {recentActivity.map((item, index) => (
+                    <li key={index} className="relative pb-8">
+                      {index !== recentActivity.length - 1 ? (
+                        <span
+                          className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <div className="relative flex space-x-3">
                         <div>
-                          <p className="text-sm text-gray-500">
-                            Recycled <span className="font-medium text-gray-900">{item.itemType}</span>
-                            {item.weight && ` (${item.weight} kg)`}
-                          </p>
+                          <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${item.status === 'Completed' ? 'bg-green-500' : 'bg-gray-400'
+                            }`}>
+                            <TrashIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                          </span>
                         </div>
-                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                          <time dateTime={item.createdAt.toISOString()}>
-                            {item.createdAt.toLocaleDateString()}
-                          </time>
+                        <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              Recycled <span className="font-medium text-gray-900">{item.itemType}</span>
+                              {item.weight && ` (${item.weight} kg)`}
+                            </p>
+                          </div>
+                          <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                            <time dateTime={item.createdAt.toISOString()}>
+                              {item.createdAt.toLocaleDateString()}
+                            </time>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Achievement Badges */}
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Achievements</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -422,8 +419,7 @@ export default function UserProfile() {
             )}
             {userStats.carbonSaved >= 100 && (
               <div className="text-center transform hover:scale-105 transition-transform">
-                <div className="bg-green-100 p-4 rounded-full
-inline-block">
+                <div className="bg-green-100 p-4 rounded-full inline-block">
                   <span className="text-2xl">🌍</span>
                 </div>
                 <p className="mt-2 text-sm font-medium">Earth Protector</p>
@@ -442,10 +438,9 @@ inline-block">
           </div>
         </div>
 
-        {/* Recycling Goals */}
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Recycling Goals</h3>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <div className="flex justify-between text-sm font-medium">
                 <span>Monthly Recycling Goal</span>
@@ -477,7 +472,6 @@ inline-block">
           </div>
         </div>
 
-        {/* Enhanced Environmental Impact Visualization */}
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Detailed Environmental Impact</h3>
           

@@ -36,6 +36,47 @@ interface SubmissionData {
   arrivalDate?: string;
 }
 
+interface SuccessPopupProps {
+  message: string;
+  onClose: () => void;
+}
+
+const SuccessPopup: React.FC<SuccessPopupProps> = ({ message, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 relative animate-fade-in-up">
+        <div className="flex flex-col items-center text-center">
+          <div className="bg-green-100 rounded-full p-3 mb-4">
+            <svg 
+              className="w-8 h-8 text-green-600" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth="2" 
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Success!
+          </h3>
+          <p className="text-gray-600 mb-6">{message}</p>
+          <button
+            onClick={onClose}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function TrackSubmission() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -46,6 +87,8 @@ export default function TrackSubmission() {
     const [copied, setCopied] = useState(false);
     const { currentUser } = useAuth();
     const [isRequestingPickup, setIsRequestingPickup] = useState(false);
+    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
 
     const handleTrack = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -331,6 +374,13 @@ export default function TrackSubmission() {
 
                     <BlockchainVerification itemId={submissionId} />
                 </div>
+            )}
+
+            {showSuccessPopup && (
+                <SuccessPopup
+                    message={successMessage}
+                    onClose={() => setShowSuccessPopup(false)}
+                />
             )}
         </div>
     );
