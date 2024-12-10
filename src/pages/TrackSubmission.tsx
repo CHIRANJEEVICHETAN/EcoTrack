@@ -165,7 +165,8 @@ export default function TrackSubmission() {
     };
 
     const getTrackingUrl = (id: string) => {
-        return `${window.location.origin}/track-submission/${id}`;
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/track-submission/${id}`;
     };
 
     const handleCopyLink = async () => {
@@ -173,7 +174,7 @@ export default function TrackSubmission() {
         try {
             await navigator.clipboard.writeText(url);
             setCopied(true);
-            setTimeout(() => setCopied(false), 2000); // Reset copied state after 2 seconds
+            setTimeout(() => setCopied(false), 2000);
         } catch (err) {
             console.error('Failed to copy:', err);
         }
