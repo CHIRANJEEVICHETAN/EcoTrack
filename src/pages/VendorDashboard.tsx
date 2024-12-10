@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../config/firebase'; // Firestore instance
 import { collection, getDocs, query, where, updateDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-
 interface Vendor {
   id: string;
   name: string;
   location: string;
 }
-
 interface EWasteReport {
   id: string;
   userEmail: string;
@@ -26,7 +23,6 @@ interface EWasteReport {
   description?: string;
   imageUrl?: string;
 }
-
 interface DashboardStats {
   totalEwaste: number;
   totalPickups: number;
@@ -34,7 +30,6 @@ interface DashboardStats {
   completedPickups: number;
   totalWeight: number;
 }
-
 interface PickupReport {
   id: string;
   userName: string;
@@ -49,7 +44,6 @@ interface PickupReport {
   assignedAt?: any; // Timestamp when vendor was assigned
   arrivalDate?: string;
 }
-
 const VendorDashboard = () => {
   const [ewasteReports, setEwasteReports] = useState<EWasteReport[]>([]);
   const [pickupReports, setPickupReports] = useState<PickupReport[]>([]);  // New state for pickup reports
@@ -69,9 +63,6 @@ const VendorDashboard = () => {
     message: string;
     type: 'success' | 'error';
   }>({ show: false, message: '', type: 'success' });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-
   // Fetch eWaste reports from Firestore
   useEffect(() => {
     const fetchEwasteReports = async () => {
@@ -97,10 +88,8 @@ const VendorDashboard = () => {
         console.error('Error fetching eWaste reports:', error);
       }
     };
-
     fetchEwasteReports();
   }, []); // Remove vendorId dependency since we're not using it
-
   // Fetch Pickup Reports (assuming a separate collection for pickup)
   useEffect(() => {
     const fetchPickupReports = async () => {
@@ -129,10 +118,8 @@ const VendorDashboard = () => {
         console.error('Error fetching pickup reports:', error);
       }
     };
-
     fetchPickupReports();
   }, []); // Remove vendorId dependency
-
   // Add this function to fetch vendors
   useEffect(() => {
     const fetchVendors = async () => {
@@ -147,10 +134,8 @@ const VendorDashboard = () => {
         console.error('Error fetching vendors:', error);
       }
     };
-
     fetchVendors();
   }, []);
-
   // Add this function to calculate dashboard stats
   useEffect(() => {
     const calculateStats = () => {
@@ -163,10 +148,8 @@ const VendorDashboard = () => {
       };
       setDashboardStats(stats);
     };
-
     calculateStats();
   }, [ewasteReports, pickupReports]);
-
   // Add this function to handle status updates
   const handlePickupStatusUpdate = async (pickupId: string, newStatus: string) => {
     try {
@@ -175,7 +158,6 @@ const VendorDashboard = () => {
         status: newStatus,
         lastUpdated: serverTimestamp()
       });
-
       // Find the pickup report to get user details
       const pickup = pickupReports.find(report => report.id === pickupId);
       
@@ -189,7 +171,6 @@ const VendorDashboard = () => {
           createdAt: serverTimestamp()
         });
       }
-
       // Update local state
       setPickupReports(prevReports => 
         prevReports.map(report => 
@@ -198,19 +179,16 @@ const VendorDashboard = () => {
             : report
         )
       );
-
       // Show success notification
       setNotification({
         show: true,
         message: 'Pickup status updated successfully!',
         type: 'success'
       });
-
       // Hide notification after 3 seconds
       setTimeout(() => {
         setNotification(prev => ({ ...prev, show: false }));
       }, 3000);
-
     } catch (error) {
       console.error('Error updating pickup status:', error);
       setNotification({
@@ -220,7 +198,6 @@ const VendorDashboard = () => {
       });
     }
   };
-
   // Add this function to handle vendor assignment
   const handleVendorAssignment = async (pickupId: string, vendorId: string) => {
     try {
@@ -229,7 +206,6 @@ const VendorDashboard = () => {
         vendorId,
         assignedAt: serverTimestamp()
       });
-
       // Find the pickup to get the e-waste submission ID
       const pickup = pickupReports.find(p => p.id === pickupId);
       if (pickup?.submissionId) {
@@ -238,7 +214,6 @@ const VendorDashboard = () => {
           vendorId
         });
       }
-
       // Update local state
       setPickupReports(prevReports =>
         prevReports.map(report =>
@@ -247,7 +222,6 @@ const VendorDashboard = () => {
             : report
         )
       );
-
       // Show success notification
       setNotification({
         show: true,
@@ -263,13 +237,11 @@ const VendorDashboard = () => {
       });
     }
   };
-
   const handleArrivalDateUpdate = async (pickupId: string, date: string) => {
     try {
       await updateDoc(doc(db, 'pickups', pickupId), {
         arrivalDate: date
       });
-
       // Update local state
       setPickupReports(prevReports =>
         prevReports.map(report =>
@@ -278,7 +250,6 @@ const VendorDashboard = () => {
             : report
         )
       );
-
       setNotification({
         show: true,
         message: 'Arrival date updated successfully!',
@@ -293,178 +264,193 @@ const VendorDashboard = () => {
       });
     }
   };
-
-  const filteredReports = pickupReports.filter(report => 
-    report.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    report.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="container mx-auto px-4 py-8">
       <h2 className="text-2xl font-bold mb-6">Vendor Dashboard</h2>
-
-      {/* Stats Section */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <h3 className="text-sm font-medium text-gray-500">Total E-waste</h3>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{dashboardStats.totalEwaste} kg</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <h3 className="text-sm font-medium text-gray-500">Total Pickups</h3>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{dashboardStats.totalPickups}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <h3 className="text-sm font-medium text-gray-500">Pending Pickups</h3>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{dashboardStats.pendingPickups}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <h3 className="text-sm font-medium text-gray-500">Completed Pickups</h3>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{dashboardStats.completedPickups}</p>
-        </div>
-      </div>
-
-      {/* Pickup Reports Section */}
-      <section className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-semibold text-gray-900">Pickup Reports</h2>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search by name or location..."
-              className="px-3 py-2 border rounded-md w-full sm:w-64"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border rounded-md"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
+      {/* Enhanced Dashboard Overview Section */}
+      <section className="bg-white shadow-lg rounded-lg p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Dashboard Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="bg-green-100 p-4 rounded-lg">
+            <h4 className="text-lg font-medium">Total E-Waste</h4>
+            <p className="text-2xl font-bold">{dashboardStats.totalEwaste}</p>
+          </div>
+          <div className="bg-blue-100 p-4 rounded-lg">
+            <h4 className="text-lg font-medium">Total Pickups</h4>
+            <p className="text-2xl font-bold">{dashboardStats.totalPickups}</p>
+          </div>
+          <div className="bg-yellow-100 p-4 rounded-lg">
+            <h4 className="text-lg font-medium">Pending Pickups</h4>
+            <p className="text-2xl font-bold">{dashboardStats.pendingPickups}</p>
+          </div>
+          <div className="bg-green-100 p-4 rounded-lg">
+            <h4 className="text-lg font-medium">Completed Pickups</h4>
+            <p className="text-2xl font-bold">{dashboardStats.completedPickups}</p>
+          </div>
+          <div className="bg-purple-100 p-4 rounded-lg">
+            <h4 className="text-lg font-medium">Total Weight (kg)</h4>
+            <p className="text-2xl font-bold">{dashboardStats.totalWeight.toFixed(2)}</p>
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pickup Location
-                </th>
-                <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Items
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Expected Arrival
-                </th>
+      </section>
+      {/* E-Waste Reports Section */}
+      <section className="bg-white shadow-lg rounded-lg p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">E-Waste Reports Submitted by Users</h3>
+        {/* E-Waste Reports Table */}
+        <table className="min-w-full table-auto mb-4">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-4 py-2 text-left">Email</th>
+              <th className="px-4 py-2 text-left">Location</th>
+              <th className="px-4 py-2 text-left">Item Type</th>
+              <th className="px-4 py-2 text-left">Brand/Model</th>
+              <th className="px-4 py-2 text-left">Condition</th>
+              <th className="px-4 py-2 text-left">Weight</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-left">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ewasteReports.map((report) => (
+              <tr key={report.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-2">{report.userEmail}</td>
+                <td className="px-4 py-2">{report.location}</td>
+                <td className="px-4 py-2">{report.itemType}</td>
+                <td className="px-4 py-2">{`${report.brand} ${report.model}`}</td>
+                <td className="px-4 py-2">{report.condition}</td>
+                <td className="px-4 py-2">{report.weight}</td>
+                <td className="px-4 py-2">
+                  <span className={`px-2 py-1 rounded-full text-xs ${report.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    report.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      report.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                    }`}>
+                    {report.status}
+                  </span>
+                </td>
+                <td className="px-4 py-2">
+                  {report.createdAt ? new Date(report.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredReports.map((report) => (
-                <tr key={report.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{report.userName}</div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="text-sm text-gray-900">{report.location}</div>
-                  </td>
-                  <td className="hidden sm:table-cell px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{report.contact}</div>
-                  </td>
-                  <td className="hidden sm:table-cell px-4 py-4">
-                    <div className="text-sm text-gray-500">{report.items}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <select
-                      value={report.status}
-                      onChange={(e) => handlePickupStatusUpdate(report.id, e.target.value)}
-                      className={`text-sm rounded-md border px-2 py-1 ${
-                        report.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
-                        report.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-300' :
-                        'bg-green-50 text-green-700 border-green-300'
-                      }`}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <input
-                      type="date"
-                      value={report.arrivalDate || ''}
-                      onChange={(e) => handleArrivalDateUpdate(report.id, e.target.value)}
-                      className="text-sm border rounded-md px-2 py-1"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
 
-        {/* Mobile View for Hidden Columns */}
-        <div className="sm:hidden">
-          {filteredReports.map((report) => (
-            <div key={report.id} className="px-4 py-3 border-t">
-              <div className="mb-2">
-                <span className="text-xs font-medium text-gray-500">Contact:</span>
-                <span className="ml-2 text-sm text-gray-900">{report.contact}</span>
-              </div>
-              <div>
-                <span className="text-xs font-medium text-gray-500">Items:</span>
-                <span className="ml-2 text-sm text-gray-900">{report.items}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredReports.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-sm">No pickup reports found</p>
-          </div>
-        )}
-
-        {/* Notification */}
-        {notification.show && (
-          <div className="fixed bottom-4 right-4 animate-slide-up">
-            <div className={`rounded-lg p-4 shadow-lg ${
-              notification.type === 'success' 
-                ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
-                : 'bg-red-100 border-l-4 border-red-500 text-red-700'
-            }`}>
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  {notification.type === 'success' ? (
-                    <CheckCircleIcon className="h-5 w-5 text-green-400" />
-                  ) : (
-                    <XCircleIcon className="h-5 w-5 text-red-400" />
-                  )}
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm">{notification.message}</p>
-                </div>
-              </div>
-            </div>
+        {ewasteReports.length === 0 && (
+          <div className="text-center py-4 text-gray-500">
+            No e-waste reports found
           </div>
         )}
       </section>
+      {/* Enhanced Pickup Reports Section */}
+      <section className="bg-white shadow-lg rounded-lg p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Pickup Management</h3>
+        <table className="min-w-full table-auto mb-4">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-4 py-2 text-left">User Name</th>
+              <th className="px-4 py-2 text-left">Pickup Location</th>
+              <th className="px-4 py-2 text-left">Contact</th>
+              <th className="px-4 py-2 text-left">Items</th>
+              <th className="px-4 py-2 text-left">Assign Vendor</th>
+              <th className="px-4 py-2 text-left">Expected Arrival</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-left">Submission Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pickupReports.map((report) => (
+              <tr key={report.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-2">{report.userName}</td>
+                <td className="px-4 py-2">{report.location}</td>
+                <td className="px-4 py-2">{report.contact}</td>
+                <td className="px-4 py-2">{report.items}</td>
+                <td className="px-4 py-2">
+                  <select
+                    value={report.vendorId || ''}
+                    onChange={(e) => handleVendorAssignment(report.id, e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-gray-300 bg-white shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Vendor</option>
+                    {vendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    type="date"
+                    value={report.arrivalDate || ''}
+                    onChange={(e) => handleArrivalDateUpdate(report.id, e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-gray-300 bg-white shadow-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <select
+                    value={report.status}
+                    onChange={(e) => handlePickupStatusUpdate(report.id, e.target.value)}
+                    className={`w-full px-3 py-2 rounded-md border appearance-none cursor-pointer shadow-sm focus:ring-1 focus:ring-green-500 ${report.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                        report.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-300' :
+                        report.status === 'completed' ? 'bg-green-50 text-green-700 border-green-300' :
+                          'bg-gray-50 text-gray-700 border-gray-300'
+                      }`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </td>
+                <td className="px-4 py-2 text-sm text-gray-500">
+                  {report.pickupDate?.toDate().toLocaleDateString() || 'N/A'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {pickupReports.length === 0 && (
+          <div className="text-center py-4 text-gray-500">
+            No pickup reports found
+          </div>
+        )}
+      </section>
+      {/* Floating Notification */}
+      {notification.show && (
+        <div className="fixed bottom-4 right-4 animate-slide-up">
+          <div className={`rounded-lg p-4 shadow-lg ${notification.type === 'success'
+            ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
+            : 'bg-red-100 border-l-4 border-red-500 text-red-700'
+            }`}>
+            <div className="flex items-center">
+              {notification.type === 'success' ? (
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+              <p>{notification.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add this CSS to your existing styles or in a style tag */}
+      <style>
+        {`
+          select {
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+          }
+        `}
+      </style>
     </div>
   );
 };
-
 export default VendorDashboard;
